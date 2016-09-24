@@ -8,18 +8,20 @@ analysesData[,':='(PlotID = factor(PlotID, levels = theplotidlebal, labels = the
                    uniTreeID = factor(uniTreeID, levels = thetreeidlebal, 
                                       labels = thetreeidlebal))]
 
-OverallModels <- list()
-OverallResults <- data.table(Species = character(),
-                             MarR2 = numeric(),
-                             ConR2 = numeric(),
-                             Variable = character(),
-                             Value = numeric(), Std.Error = numeric(),
-                             DF = numeric(), t.value = numeric(),
-                             p.value = numeric())
-optim <- lmeControl(opt="optim", maxIter=10000, msMaxIter = 10000)
+AllModels <- list()
+AllResults <- data.table(Model = character(),
+                         Formula = character(),
+                         DIC = numeric(),
+                         AIC = numeric(),
+                         BIC = numeric(),
+                         MarR2 = numeric(),
+                         ConR2 = numeric(),
+                         Species = character())
+
 testSpecieses <- c("JP", "BS", "TA")
 # testSpecieses <- c("PL", "AW", "SW", "SB", "PJ")
 i <- 1
+source(file.path(workPath, "Rcodes", "Rfunctions", "mixedModelSelection.R"))
 for(testspecies in testSpecieses){
   speciesData <- analysesData[Species == testspecies,]
   speciesData[,':='(logY = log(BiomassGR), 
@@ -27,25 +29,19 @@ for(testspecies in testSpecieses){
                     Yearctd = Year-mean(Year),
                     logHctd = log(Hegyi)-mean(log(Hegyi)),
                     Dominancectd = Dominance_indiBiomass - mean(Dominance_indiBiomass))]
-  theModel <- lme(logY~logDBHctd+Yearctd+logHctd+Dominancectd+
-                    logDBHctd:Yearctd+logDBHctd:logHctd+logDBHctd:Dominancectd+
-                    Yearctd:logHctd+Yearctd:Dominancectd+logHctd:Dominancectd+
-                    logDBHctd:Yearctd:logHctd+logDBHctd:Yearctd:Dominancectd+
-                    Yearctd:logHctd:Dominancectd,
-                  random = ~1+Yearctd|PlotID/uniTreeID,
-                  data = speciesData,
-                  control = optim)
-  OverallModels[[i]] <- theModel
-  names(OverallModels)[i] <- paste(testspecies, "_all", sep = "")
-  i <- i+1
-  coeff <- data.frame(summary(theModel)$tTable)
-  coeff$Variable <- row.names(coeff)
-  coeff <- data.table(coeff)[,':='(Species = testspecies, 
-                                   MarR2 = as.numeric(r.squaredGLMM(theModel)[1]),
-                                   ConR2 = as.numeric(r.squaredGLMM(theModel)[2]))]
-  OverallResults <- rbind(OverallResults, coeff[,.(Species, MarR2, ConR2,
-                                                   Variable,
-                                                   Value, Std.Error, DF, t.value, p.value)])
+  
+  modelselection <- mixedModelSelection(data = speciesData, DV = "logY", 
+                                        maxInteraction = 3,
+                                        IDV = c("logDBHctd", "Yearctd", "logHctd", "Dominancectd"),
+                                        randomMethod = "both", slopeTerm = "Yearctd", 
+                                        randomTerm = "PlotID/uniTreeID")
+  
+  AllResults <- rbind(AllResults, modelselection$modelSummary[, Species:=indispecies])
+  names(modelselection$modelOutput) <- paste(indispecies, "_", 
+                                             names(modelselection$modelOutput),
+                                             sep = "")
+  AllModels <- append(AllModels, modelselection$modelOutput)
+  
 }
 rm(i, coeff, optim, testspecies, testSpecieses, theModel, analysesComponent,
    analysesData1, analysesDataOrg, DBHCut, minDBHdata, minFirstDBH, speciesData)
