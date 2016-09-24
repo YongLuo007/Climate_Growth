@@ -69,6 +69,7 @@ setMethod("mixedModelSelection",
                                 slopeTerm){
             allIDV <- IDV
             output <- data.table(Model = character(), Formula = character(),
+                                 Description = character(),
                                  DIC = numeric(), AIC = numeric(), BIC = numeric(),
                                  MarR2 = numeric(), ConR2 = numeric())
             outputModel <- list()
@@ -109,11 +110,12 @@ setMethod("mixedModelSelection",
             rm(themodelForm)
             outputAdd <- data.table(Model = "Full",
                                     Formula = modelFormula,
-                                    DIC = as.numeric(DIC(themodel)),
+                                    Description = "All variables",
+                                    DIC = as.numeric(MuMIn::DIC(themodel)),
                                     AIC = as.numeric(AIC(themodel)),
                                     BIC = as.numeric(BIC(themodel)),
-                                    MarR2 = as.numeric(r.squaredGLMM(themodel)[1]),
-                                    ConR2 = as.numeric(r.squaredGLMM(themodel)[2]))
+                                    MarR2 = as.numeric(MuMIn::r.squaredGLMM(themodel)[1]),
+                                    ConR2 = as.numeric(MuMIn::r.squaredGLMM(themodel)[2]))
             output <- rbind(output, outputAdd)
             tTable <- data.frame(summary(themodel)$tTable)
             reducedIDV <- row.names(tTable)[tTable$p.value<0.05 & row.names(tTable) != "(Intercept)"]
@@ -137,11 +139,12 @@ setMethod("mixedModelSelection",
                 rm(themodelForm)
                 outputAdd <- data.table(Model = paste("ReducedModel", i, sep = ""),
                                         Formula = reducedFomu,
-                                        DIC = as.numeric(DIC(themodel)),
+                                        Description = paste("all significant", i, sep = ""),
+                                        DIC = as.numeric(MuMIn::DIC(themodel)),
                                         AIC = as.numeric(AIC(themodel)),
                                         BIC = as.numeric(BIC(themodel)),
-                                        MarR2 = as.numeric(r.squaredGLMM(themodel)[1]),
-                                        ConR2 = as.numeric(r.squaredGLMM(themodel)[2]))
+                                        MarR2 = as.numeric(MuMIn::r.squaredGLMM(themodel)[1]),
+                                        ConR2 = as.numeric(MuMIn::r.squaredGLMM(themodel)[2]))
                 output <- rbind(output, outputAdd)
                 tTable <- data.frame(summary(themodel)$tTable)
                 prevvari <- reducedIDV
@@ -153,35 +156,43 @@ setMethod("mixedModelSelection",
             allsignificantV <- reducedIDV
             # drop one variable from all significant variables
             if(length(allsignificantV) > 1){
-              tempV <- data.frame(t(combinat::combn(reducedIDV, (length(reducedIDV)-1))))
-              for(i in 1:nrow(tempV)){
-                reducedIDV <- as.character(tempV[i,])
-                reducedFomu <- paste(DV, "~", reducedIDV[1], sep = "")
-                if(length(reducedIDV)>=2){
-                  for(j in 2:length(reducedIDV)){
-                    reducedFomu <- paste(reducedFomu, "+", reducedIDV[j], sep = "")
+              for(k in 1:(length(allsignificantV)-1)){
+                tempV <- data.frame(t(combinat::combn(allsignificantV,
+                                                      (length(allsignificantV)-k))),
+                                    stringsAsFactors = FALSE)
+                for(i in 1:nrow(tempV)){
+                  reducedIDV <- as.character(tempV[i,])
+                  reducedFomu <- paste(DV, "~", reducedIDV[1], sep = "")
+                  if(length(reducedIDV)>=2){
+                    for(j in 2:length(reducedIDV)){
+                      reducedFomu <- paste(reducedFomu, "+", reducedIDV[j], sep = "")
+                    }
+                    rm(j)
                   }
-                  rm(j)
+                  themodelForm <- paste("themodel <- lme(", reducedFomu, ",",
+                                        randomArg, ",",
+                                        "data = data,
+                                        control = lmeControl(maxIter=10000, msMaxIter = 10000))", sep = "")
+                  eval(parse(text=themodelForm))
+                  outputModel[[paste("ReducedModel", nrow(output)+1, sep = "")]] <- themodel
+                  rm(themodelForm)
+                  droppedV <- paste(allsignificantV[!(allsignificantV %in% reducedIDV)], collapse=", ")
+                  outputAdd <- data.table(Model = paste("ReducedModel", nrow(output)+1, sep = ""),
+                                          Formula = reducedFomu,
+                                          Description = paste("drop ", k, " variable(s): ", droppedV, sep = ""),
+                                          DIC = as.numeric(MuMIn::DIC(themodel)),
+                                          AIC = as.numeric(AIC(themodel)),
+                                          BIC = as.numeric(BIC(themodel)),
+                                          MarR2 = as.numeric(MuMIn::r.squaredGLMM(themodel)[1]),
+                                          ConR2 = as.numeric(MuMIn::r.squaredGLMM(themodel)[2]))
+                  output <- rbind(output, outputAdd)
+                  rm(outputAdd, reducedFomu, reducedIDV)
                 }
-                themodelForm <- paste("themodel <- lme(", reducedFomu, ",",
-                                      randomArg, ",",
-                                      "data = data,
-                                      control = lmeControl(maxIter=10000, msMaxIter = 10000))", sep = "")
-                eval(parse(text=themodelForm))
-                outputModel[[paste("ReducedModel", nrow(output)+1, sep = "")]] <- themodel
-                rm(themodelForm)
-                outputAdd <- data.table(Model = paste("ReducedModel", nrow(output)+1, sep = ""),
-                                        Formula = reducedFomu,
-                                        DIC = as.numeric(DIC(themodel)),
-                                        AIC = as.numeric(AIC(themodel)),
-                                        BIC = as.numeric(BIC(themodel)),
-                                        MarR2 = as.numeric(r.squaredGLMM(themodel)[1]),
-                                        ConR2 = as.numeric(r.squaredGLMM(themodel)[2]))
-                output <- rbind(output, outputAdd)
-                rm(outputAdd, reducedIDV, reducedFomu)
+                rm(i, tempV)
               }
-              rm(i)
+              
             }
+            
             # add one variable to all significant variables from non-significant variables
             nonsignificantV <- allIDV[!(allIDV %in% allsignificantV)]
             for(addV in nonsignificantV){
@@ -203,11 +214,12 @@ setMethod("mixedModelSelection",
               rm(themodelForm)
               outputAdd <- data.table(Model = paste("ReducedModel", nrow(output)+1, sep = ""),
                                       Formula = reducedFomu,
-                                      DIC = as.numeric(DIC(themodel)),
+                                      Description = paste("add one variable: ", addV, sep = ""),
+                                      DIC = as.numeric(MuMIn::DIC(themodel)),
                                       AIC = as.numeric(AIC(themodel)),
                                       BIC = as.numeric(BIC(themodel)),
-                                      MarR2 = as.numeric(r.squaredGLMM(themodel)[1]),
-                                      ConR2 = as.numeric(r.squaredGLMM(themodel)[2]))
+                                      MarR2 = as.numeric(MuMIn::r.squaredGLMM(themodel)[1]),
+                                      ConR2 = as.numeric(MuMIn::r.squaredGLMM(themodel)[2]))
               output <- rbind(output, outputAdd)
               rm(outputAdd, reducedFomu, reducedIDV, themodel)
             }
