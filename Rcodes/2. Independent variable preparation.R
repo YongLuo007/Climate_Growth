@@ -25,6 +25,14 @@ thedata <- setkey(thedata, PlotID, IniYear)[setkey(minDBHdata, PlotID, IniYear),
                                                       nomatch = 0]
 thedata[,':='(maxDBH=max(IniDBH)), by = c("PlotID", "IniYear")]
 thedata[,Dominance_indiSize:=100*(IniDBH-minDBH)/(maxDBH-minDBH)]
+
+minBiomassdata <- thedata[Status == "Survive",.(PlotID, IniYear, IniBiomass, IniHeight)][
+  ,.(minBiomass=min(IniBiomass)), by = c("PlotID", "IniYear")]
+thedata <- setkey(thedata, PlotID, IniYear)[setkey(minBiomassdata, PlotID, IniYear), 
+                                            nomatch = 0]
+thedata[,':='(maxBiomass=max(IniBiomass)), by = c("PlotID", "IniYear")]
+thedata[,Dominance_indiBiomass:=100*(IniBiomass-minBiomass)/(maxBiomass-minBiomass)]
+
 # Dominance_indiSize is the dominance index that is associated with each tree's size
 # 0 to 100, 0 is the smallest tree and 100 is the biggest tree
 
@@ -56,11 +64,8 @@ speciesTable <- unique(thedata[,.(Species, uniTreeID)], by = "uniTreeID")[
 
 speciesTable[,totNumbofTree:=sum(NumberofTree), by = Species]
 speciesTable <- speciesTable[order(-totNumbofTree),.(Species,  NumberofTree)]
-set(thedata, ,c("minPlotMY", "FirstDBH", "Status", "minDBH",
-                     "minHeight", "maxDBH", "maxHeight", "minBAGR"),NULL)
 
-
-set(thedata, ,c("Status", "minDBH", "maxDBH", "minBAGR"), NULL)
+set(thedata, ,c("Status", "minDBH", "maxDBH", "minBiomass", "maxBiomass","minBAGR"), NULL)
 
 write.csv(thedata,
           file.path(workPath, "data", "MBdatafinal.csv"),

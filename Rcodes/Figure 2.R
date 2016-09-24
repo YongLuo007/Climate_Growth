@@ -1,12 +1,8 @@
 rm(list = ls())
 library(data.table); library(ggplot2); library(SpaDES)
 library(nlme); library(dplyr);library(MuMIn);library(gridExtra)
-if(as.character(Sys.info()[6]) == "yonluo"){
-  workPath <- "~/Associates/Yong Luo/Climate_Growth/MBgrowth"
-} else {
-  workPath <- "J:/MBgrowth"
-}
-load(file.path(workPath, paste("BiomassGR_mainResults20.RData", sep = "")))
+workPath <- "~/GitHub/Climate_Growth"
+load(file.path(workPath, "Results", "BiomassGR_mainResults.RData"))
 
 # how to calculate the relative importance for each predictor
 
@@ -20,8 +16,8 @@ ThreeDGrowthvsYearandDom <- data.table(Species = character(), Dominance = numeri
 OtherVariable <- data.table(Species = character(), DBH = numeric(), H = numeric())
 for(indispecies in c("JP", "BS", "TA")){
   set.seed(1)
-  tempdata <- data.table(Dominance = seq(1, 20, by = 1))[
-    , Dominctd:=Dominance-mean(analysesData[Species == indispecies,]$DominanceIndex)]
+  tempdata <- data.table(Dominance = seq(0, 100, by = 20))[
+    , Dominctd:=Dominance-mean(analysesData[Species == indispecies,]$Dominance_Biomass)]
   yeareffect <- rnorm(10000,
                       mean = OverallResults[Species == indispecies & Variable == "Yearctd",]$Value,
                       sd = 100*OverallResults[Species == indispecies & Variable == "Yearctd",]$Std.Error)
@@ -35,7 +31,7 @@ for(indispecies in c("JP", "BS", "TA")){
   YearWithDominanceTable <- rbind(YearWithDominanceTable,
                                  tempdata[,.(Species=indispecies, Dominance, Value, SE, MainEffect = 0)],
                                  data.table(Species = indispecies, 
-                                            Dominance = mean(analysesData[Species == indispecies,]$DominanceIndex),
+                                            Dominance = mean(analysesData[Species == indispecies,]$Dominance_Biomass),
                                             Value = OverallResults[Species == indispecies & Variable == "Yearctd",]$Value,
                                             SE = OverallResults[Species == indispecies & Variable == "Yearctd",]$Std.Error,
                                             MainEffect = 1))
@@ -43,10 +39,10 @@ for(indispecies in c("JP", "BS", "TA")){
   newdata <- data.table(expand.grid(Year = seq(min(analysesData[Species == indispecies,]$Year), 
                                                max(analysesData[Species == indispecies,]$Year),
                                                length = 100),
-                                    Dominance = c(seq(1, 20, by = 1),
-                                                  mean(analysesData[Species == indispecies,]$DominanceIndex))))
+                                    Dominance = c(seq(0, 100, by = 1),
+                                                  mean(analysesData[Species == indispecies,]$Dominance_Biomass))))
   newdata[,':='(Yearctd = Year-mean(analysesData[Species == indispecies,]$Year),
-                Dominancectd = Dominance - mean(analysesData[Species == indispecies,]$DominanceIndex),
+                Dominancectd = Dominance - mean(analysesData[Species == indispecies,]$Dominance_Biomass),
                 logDBHctd = log(mean(analysesData[Species == indispecies,]$IniDBH))-
                   mean(log(analysesData[Species == indispecies,]$IniDBH)),
                 logHctd = log(mean(analysesData[Species == indispecies,]$Hegyi))-
@@ -58,7 +54,7 @@ for(indispecies in c("JP", "BS", "TA")){
   newdata$PredictedBGR_Upper <- exp(fittedvalues$fit+1.98*fittedvalues$se.fit)
   newdata$PredictedBGR_Lower <- exp(fittedvalues$fit-1.98*fittedvalues$se.fit)
   newdata[,Main:=0]
-  newdata[Dominance == mean(analysesData[Species == indispecies,]$DominanceIndex), Main := 1]
+  newdata[Dominance == mean(analysesData[Species == indispecies,]$Dominance_Biomass), Main := 1]
   ThreeDGrowthvsYearandDom <- rbind(ThreeDGrowthvsYearandDom,
                                     newdata[,.(Species, Year, Dominance, PredictedBGR, 
                                                PredictedBGR_Upper, PredictedBGR_Lower, Main)])
@@ -69,7 +65,7 @@ for(indispecies in c("JP", "BS", "TA")){
   rm(themodel, newdata, tempdata, yearDominanceeffect, yeareffect, indispecies)
 }
 
-YearWithDominanceTable[, ':='(Value = Value*100, SE = SE*100)]
+YearWithDominanceTable[, ':='(Value = Value*10, SE = SE*10)]
 pvalues <- OverallResults[Variable == "Yearctd:Dominancectd",.(Species, p.value)]
 YearWithDominanceTable <- setkey(YearWithDominanceTable, Species)[setkey(pvalues, Species), nomatch = 0]
 YearWithDominanceTable[,linetype := 1]
@@ -84,7 +80,7 @@ YearWithDominanceTable$linetype <- factor(YearWithDominanceTable$linetype,
 # the a
 Fig_a <- ggplot(data = YearWithDominanceTable[MainEffect == 0,], 
                 aes(x = Dominance, y = Value))+
-  geom_segment(aes(x = 1, xend = 20, y = 0, yend = 0), 
+  geom_segment(aes(x = 0, xend = 100, y = 0, yend = 0), 
                linetype = 2, size = 1, colour = "gray")+
   geom_ribbon(aes(ymin = Value-1.98*SE, ymax = Value+1.98*SE, 
                   fill = Species, group = Species), alpha = 0.1,
@@ -97,10 +93,10 @@ Fig_a <- ggplot(data = YearWithDominanceTable[MainEffect == 0,],
   scale_color_manual(name = "Species", 
                      values = c("red", "green", "blue"))+
   scale_y_continuous(name = expression(paste("Year effect on growth (", 10^{-2}, ")")),
-                     limits = c(-7.5, 3.5), 
-                     breaks = round(seq(-7.5, 3.5, by = 2),1))+
-  scale_x_continuous(name = "Dominance index", limits = c(1, 20), breaks = seq(1, 20, by = 4))+
-  annotate("text", x = 1, y = 2, label = "a", size = 10)+
+                     limits = c(-1, 3), 
+                     breaks = round(seq(-1, 3, by = 2)))+
+  scale_x_continuous(name = "Dominance index", limits = c(0, 100), breaks = seq(0, 100, by = 20))+
+  annotate("text", x = 1, y = 5, label = "a", size = 10)+
   theme_bw()+
   theme(panel.grid.major = element_blank(),
         panel.grid.minor = element_blank(),
@@ -112,7 +108,7 @@ Fig_a <- ggplot(data = YearWithDominanceTable[MainEffect == 0,],
         legend.position = c(0.8, 0.2),
         legend.text = element_text(size = 13),
         legend.title = element_text(size = 15))
-ggsave(file = file.path(workPath, "YearEffect.png"), Fig_a, width = 10, height = 5, units = "in")
+ggsave(file = file.path(workPath,  "TablesFigures", "YearEffect.png"), Fig_a, width = 10, height = 5, units = "in")
 
 ThreeDGrowthvsYearandDom$Species <- factor(ThreeDGrowthvsYearandDom$Species,
                                            levels = c("JP", "TA", "BS"),
@@ -127,14 +123,15 @@ OtherVariable$Species <- factor(OtherVariable$Species,
                                 labels = c("Jack pine", "Trembling aspen", "Black spruce"))
 
 OtherVariable[, ':='(y1 = 5, y2 = 4, Year = 1993, DBH1 = paste(DBH, "cm"))]
-Fig_a_3D <- ggplot(data = ThreeDGrowthvsYearandDom, aes(x = Year, y = PredictedBGR))+
-  # geom_ribbon(aes(group = Dominance, fill = Dominance, ymin = PredictedBGR_Lower, ymax = PredictedBGR_Upper), alpha = 0.1)+
+Fig_a_3D <- ggplot(data = ThreeDGrowthvsYearandDom[Main == 0], aes(x = Year, y = PredictedBGR))+
+  # geom_ribbon(aes(group = Dominance, fill = as.factor(Dominance), 
+  #                 ymin = PredictedBGR_Lower, ymax = PredictedBGR_Upper), alpha = 0.1)+
   geom_line(aes(group = Dominance, col = Dominance))+
-  scale_colour_continuous(low = "#FF0000", high = "#00FF00", breaks = c(1, 4, 7, 10))+
-  # scale_colour_manual(name = "Dominance", values = c("black", "red", "green", "blue"),
-  #                     labels = c("Overall", "0", "50", "100"))+
-  # scale_fill_manual(name = "Dominance", values = c("black", "red", "green", "blue"),
-  #                     labels = c("Overall", "0", "50", "100"))+
+  scale_colour_continuous(low = "#FF0000", high = "#00FF00", breaks = seq(0, 100, by = 20))+
+  # scale_colour_manual(name = "Dominance", values = rev(colorRamps::green2red(n=10)),
+  #                     labels = seq(1, 10, by = 1))+
+  # scale_fill_manual(name = "Dominance", values = rev(colorRamps::green2red(n=10)),
+  #                   labels = seq(1, 10, by = 1))+
   geom_text(data = data.frame(Year = rep(1988, 6), y = c(rep(5, 3), rep(4, 3)), 
                               labels = c(rep("DBH:", 3), rep("H:", 3)),
                               Species = rep(c("Jack pine", "Trembling aspen", "Black spruce"), 2)),
@@ -146,7 +143,7 @@ Fig_a_3D <- ggplot(data = ThreeDGrowthvsYearandDom, aes(x = Year, y = PredictedB
   facet_wrap(~Species)+
   scale_x_continuous(name = "Year", limits = c(1985, 2010), breaks = seq(1985, 2010, by = 5))+
   scale_y_continuous(name = expression(atop("Aboveground biomass growth rate", paste("(Kg ", year^{-1}, ")"))),
-                     limits = c(0, 2), breaks = seq(0, 2, by = 0.4))+
+                     limits = c(0, 10), breaks = seq(0, 6, by = 1))+
   theme_bw()+
   theme(panel.grid.major = element_blank(),
         panel.grid.minor = element_blank(),
@@ -162,7 +159,7 @@ Fig_a_3D <- ggplot(data = ThreeDGrowthvsYearandDom, aes(x = Year, y = PredictedB
         legend.title = element_text(size = 15),
         legend.direction = "horizontal")
 
-ggsave(file = file.path(workPath, "simulatedBGRTemporalTrends.png"), Fig_a_3D,
+ggsave(file = file.path(workPath, "TablesFigures","simulatedBGRTemporalTrends.png"), Fig_a_3D,
 width = 13.3, height = 5.8, units = "in")
 
 
