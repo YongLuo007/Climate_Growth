@@ -100,7 +100,6 @@ setMethod("mixedModelSelection",
             } else if (randomMethod == "both"){
               randomArg <- paste("random = ~1+", slopeTerm, "|", randomTerm, sep = "")
             }
-            browser()
             themodelForm <- paste("themodel <- lme(", modelFormula, ",",
                                   randomArg, ",",
                                   "data = data,
