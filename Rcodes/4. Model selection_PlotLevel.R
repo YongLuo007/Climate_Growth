@@ -14,6 +14,7 @@ studyspecies <- c("JP", "TA", "BS")
 AllModels <- list()
 AllResults <- data.table(Model = character(),
                          Formula = character(),
+                         Description = character(),
                          DIC = numeric(),
                          AIC = numeric(),
                          BIC = numeric(),
@@ -35,7 +36,7 @@ for(indispecies in studyspecies){
                     logDBHctd = log(meanDBH)-mean(log(meanDBH)), 
                     Yearctd = Year-mean(Year),
                     logHctd = log(meanH)-mean(log(meanH)),
-                    Dominancectd = meanDomi - mean(meanDomi))]
+                    Dominancectd = log(meanDomi) - mean(log(meanDomi)))]
   
   modelselection <- mixedModelSelection(data = speciesData, DV = "logY", 
                                         maxInteraction = 3,
