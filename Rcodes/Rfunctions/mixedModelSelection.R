@@ -76,12 +76,7 @@ setMethod("mixedModelSelection",
             }
             rm(tempV, i, j, interactions)
             # full model
-            modelFormula <- paste(DV, "~", allIDV[1], sep = "")
-            if(length(allIDV)>=2){
-              for(j in 2:length(allIDV)){
-                modelFormula <- paste(modelFormula, "+", allIDV[j], sep = "")
-              }
-            }
+            modelFormula <- paste(DV, "~", paste(allIDV, collapse = "+"), sep = "")
             themodel <- nlme::lme(as.formula(modelFormula),...)
             outputModel[["Full"]] <- themodel
             tTable <- data.frame(summary(themodel)$tTable)
@@ -98,17 +93,11 @@ setMethod("mixedModelSelection",
                                     MarR2 = as.numeric(MuMIn::r.squaredGLMM(themodel)[1]),
                                     ConR2 = as.numeric(MuMIn::r.squaredGLMM(themodel)[2]))
             output <- rbind(output, outputAdd)
-            rm(tTable, outputAdd, j, modelFormula, themodel)
+            rm(tTable, outputAdd, modelFormula, themodel)
             prevvari <- as.character()
             for(i in 1:length(reducedIDV)){
               if(length(reducedIDV) != length(prevvari)){
-                reducedFomu <- paste(DV, "~", reducedIDV[1], sep = "")
-                if(length(reducedIDV)>=2){
-                  for(j in 2:length(reducedIDV)){
-                    reducedFomu <- paste(reducedFomu, "+", reducedIDV[j], sep = "")
-                    rm(j)
-                  }
-                }
+                reducedFomu <- paste(DV, "~", paste(reducedIDV, collapse = "+"), sep = "")
                 prevvari <- reducedIDV
                 themodel <- nlme::lme(as.formula(reducedFomu),...)
                 tTable <- data.frame(summary(themodel)$tTable)
@@ -138,40 +127,32 @@ setMethod("mixedModelSelection",
             allsignificantV <- reducedIDV
             # drop one variable from all significant variables
             if(length(allsignificantV) > 1){
-              for(k in 1:(length(allsignificantV)-1)){
-                tempV <- data.frame(t(combinat::combn(allsignificantV,
-                                                      (length(allsignificantV)-k))),
-                                    stringsAsFactors = FALSE)
-                for(i in 1:nrow(tempV)){
-                  reducedIDV <- as.character(tempV[i,])
-                  reducedFomu <- paste(DV, "~", reducedIDV[1], sep = "")
-                  if(length(reducedIDV)>=2){
-                    for(j in 2:length(reducedIDV)){
-                      reducedFomu <- paste(reducedFomu, "+", reducedIDV[j], sep = "")
-                    }
-                    rm(j)
-                  }
-                  themodel <- nlme::lme(as.formula(reducedFomu),...)
-                  outputModel[[paste("ReducedModel", nrow(output)-1, sep = "")]] <- themodel
-                  droppedV <- paste(allsignificantV[!(allsignificantV %in% reducedIDV)], collapse=", ")
-                  tTable <- data.frame(summary(themodel)$tTable)
-                  sigV <- row.names(tTable)[tTable$p.value < 0.05 & row.names(tTable) != "(Intercept)"]
-                  outputAdd <- data.table(Model = paste("ReducedModel", nrow(output)-1, sep = ""),
-                                          IDV_Base = BaseIDV,
-                                          Direction = "drop",
-                                          IDV_Processed = paste(droppedV, collapse = ", "),
-                                          IDV_Length = length(reducedIDV),
-                                          All_Significant = length(reducedIDV) == length(sigV),
-                                          DIC = as.numeric(MuMIn::DIC(themodel)),
-                                          AIC = as.numeric(AIC(themodel)),
-                                          BIC = as.numeric(BIC(themodel)),
-                                          MarR2 = as.numeric(MuMIn::r.squaredGLMM(themodel)[1]),
-                                          ConR2 = as.numeric(MuMIn::r.squaredGLMM(themodel)[2]))
-                  output <- rbind(output, outputAdd)
-                  rm(outputAdd, reducedFomu, reducedIDV, tTable)
-                }
-                rm(i, tempV)
+              tempV <- data.frame(t(combinat::combn(allsignificantV,
+                                                    (length(allsignificantV)-1))),
+                                  stringsAsFactors = FALSE)
+              for(i in 1:nrow(tempV)){
+                reducedIDV <- as.character(tempV[i,])
+                reducedFomu <- paste(DV, "~", paste(reducedIDV, collapse = "+"), sep = "")
+                themodel <- nlme::lme(as.formula(reducedFomu),...)
+                outputModel[[paste("ReducedModel", nrow(output)-1, sep = "")]] <- themodel
+                droppedV <- paste(allsignificantV[!(allsignificantV %in% reducedIDV)], collapse=", ")
+                tTable <- data.frame(summary(themodel)$tTable)
+                sigV <- row.names(tTable)[tTable$p.value < 0.05 & row.names(tTable) != "(Intercept)"]
+                outputAdd <- data.table(Model = paste("ReducedModel", nrow(output)-1, sep = ""),
+                                        IDV_Base = BaseIDV,
+                                        Direction = "drop",
+                                        IDV_Processed = paste(droppedV, collapse = ", "),
+                                        IDV_Length = length(reducedIDV),
+                                        All_Significant = length(reducedIDV) == length(sigV),
+                                        DIC = as.numeric(MuMIn::DIC(themodel)),
+                                        AIC = as.numeric(AIC(themodel)),
+                                        BIC = as.numeric(BIC(themodel)),
+                                        MarR2 = as.numeric(MuMIn::r.squaredGLMM(themodel)[1]),
+                                        ConR2 = as.numeric(MuMIn::r.squaredGLMM(themodel)[2]))
+                output <- rbind(output, outputAdd)
+                rm(outputAdd, reducedFomu, reducedIDV, tTable)
               }
+              rm(i, tempV)
             }
             
             # add one variable to all significant variables from non-significant variables
@@ -182,13 +163,7 @@ setMethod("mixedModelSelection",
             AICS <- c()
             for(addV in nonsignificantV){
               reducedIDV <- c(allsignificantV, addV)
-              reducedFomu <- paste(DV, "~", reducedIDV[1], sep = "")
-              if(length(reducedIDV)>=2){
-                for(j in 2:length(reducedIDV)){
-                  reducedFomu <- paste(reducedFomu, "+", reducedIDV[j], sep = "")
-                }
-                rm(j)
-              }
+              reducedFomu <- paste(DV, "~", paste(reducedIDV, collapse = "+"), sep = "")
               themodel <- nlme::lme(as.formula(reducedFomu),...)
               outputModel[[paste("ExpandedModel", nrow(output)-1, sep = "")]] <- themodel
               tTable <- data.frame(summary(themodel)$tTable)
@@ -222,13 +197,7 @@ setMethod("mixedModelSelection",
                 significantList <- list()
                 for(addV in nonsignificantV){
                   reducedIDV <- c(allsignificantV, addV)
-                  reducedFomu <- paste(DV, "~", reducedIDV[1], sep = "")
-                  if(length(reducedIDV)>=2){
-                    for(j in 2:length(reducedIDV)){
-                      reducedFomu <- paste(reducedFomu, "+", reducedIDV[j], sep = "")
-                    }
-                    rm(j)
-                  }
+                  reducedFomu <- paste(DV, "~", paste(reducedIDV, collapse = "+"), sep = "")
                   themodel <- nlme::lme(as.formula(reducedFomu),...)
                   outputModel[[paste("ExpandedModel", nrow(output)-1, sep = "")]] <- themodel
                   tTable <- data.frame(summary(themodel)$tTable)
