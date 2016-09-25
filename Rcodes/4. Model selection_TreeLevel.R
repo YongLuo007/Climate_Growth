@@ -11,6 +11,7 @@ analysesData[,':='(PlotID = factor(PlotID, levels = theplotidlebal, labels = the
 AllModels <- list()
 AllResults <- data.table(Model = character(),
                          Formula = character(),
+                         Description = character(),
                          DIC = numeric(),
                          AIC = numeric(),
                          BIC = numeric(),
@@ -28,13 +29,14 @@ for(testspecies in testSpecieses){
                     logDBHctd = log(IniDBH)-mean(log(IniDBH)), 
                     Yearctd = Year-mean(Year),
                     logHctd = log(Hegyi)-mean(log(Hegyi)),
-                    Dominancectd = Dominance_indiBiomass - mean(Dominance_indiBiomass))]
+                    Dominancectd = log(Dominance_indiBiomass+1) - 
+                      mean(log(Dominance_indiBiomass+1)))]
   
   modelselection <- mixedModelSelection(data = speciesData, DV = "logY", 
                                         maxInteraction = 3,
                                         IDV = c("logDBHctd", "Yearctd", "logHctd", "Dominancectd"),
-                                        randomMethod = "both", slopeTerm = "Yearctd", 
-                                        randomTerm = "PlotID/uniTreeID")
+                                        random = "~1+Yearctd|PlotID/uniTreeID", 
+                                        control = "lmeControl(opt=\"optim\", maxIter=10000, msMaxIter = 10000)")
   
   AllResults <- rbind(AllResults, modelselection$modelSummary[, Species:=indispecies])
   names(modelselection$modelOutput) <- paste(indispecies, "_", 
@@ -43,7 +45,5 @@ for(testspecies in testSpecieses){
   AllModels <- append(AllModels, modelselection$modelOutput)
   
 }
-rm(i, coeff, optim, testspecies, testSpecieses, theModel, analysesComponent,
-   analysesData1, analysesDataOrg, DBHCut, minDBHdata, minFirstDBH, speciesData)
 
-save.image(file.path(workPath, "Results","BiomassGR_mainResults.RData"))
+save.image(file.path(workPath, "Results","BiomassGR_Year_modelselection.RData"))
