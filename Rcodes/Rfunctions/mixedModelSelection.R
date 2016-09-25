@@ -9,15 +9,10 @@
 #' @param maxInteraction numeric, specify the maximum interaction among predictors
 #'                                default is 1, which means no interaction terms
 #' 
-#' @param randomMethod character, choose the random slope model by using "slope",
-#'                            choose the random intercept model by using "intercept",
-#'                            choose the both random slope and intercept model by using "both"
-#'                            default is "intercept"
+#' @param random character, specify the random structure, see link(nlme::lme)
 #'                            
-#' @param randomTerm character, specify the higher hierachical layers
+#' @param control character, specify the contral arguement for lme function
 #' 
-#' @param slopeTerm character, if randomMethod is set as "slope" or "both", a slopeTerm 
-#'                             must be needed
 #' 
 #' 
 #'
@@ -44,9 +39,8 @@ setGeneric("mixedModelSelection",
                     DV,
                     IDV,
                     maxInteraction,
-                    randomMethod,
-                    randomTerm,
-                    slopeTerm) {
+                    random,
+                    control) {
              standardGeneric("mixedModelSelection")
            })
 
@@ -57,16 +51,14 @@ setMethod("mixedModelSelection",
                                 DV = "character",
                                 IDV = "character",
                                 maxInteraction = "numeric",
-                                randomMethod = "character",
-                                randomTerm = "character",
-                                slopeTerm = "character"),
+                                random = "character",
+                                control = "character"),
           definition = function(data,
                                 DV,
                                 IDV,
                                 maxInteraction,
-                                randomMethod,
-                                randomTerm,
-                                slopeTerm){
+                                random,
+                                control){
             allIDV <- IDV
             output <- data.table(Model = character(), Formula = character(),
                                  Description = character(),
@@ -94,17 +86,11 @@ setMethod("mixedModelSelection",
                 modelFormula <- paste(modelFormula, "+", allIDV[j], sep = "")
               }
             }
-            if(randomMethod == "slope"){
-              randomArg <- paste("random = ~", slopeTerm, "|", randomTerm, sep = "")
-            } else if (randomMethod == "intercept"){
-              randomArg <- paste("random = ~1|", randomTerm, sep = "")
-            } else if (randomMethod == "both"){
-              randomArg <- paste("random = ~1+", slopeTerm, "|", randomTerm, sep = "")
-            }
             themodelForm <- paste("themodel <- lme(", modelFormula, ",",
-                                  randomArg, ",",
+                                  "random = ", random, ",",
                                   "data = data,
-                                  control = lmeControl(maxIter=10000, msMaxIter = 10000))", sep = "")
+                                  control = ", control, ")", sep = "")
+            
             eval(parse(text=themodelForm))
             outputModel[["Full"]] <- themodel
             rm(themodelForm)
@@ -131,9 +117,9 @@ setMethod("mixedModelSelection",
                   }
                 }
                 themodelForm <- paste("themodel <- lme(", reducedFomu, ",",
-                                      randomArg, ",",
+                                      "random = ", random, ",",
                                       "data = data,
-                                      control = lmeControl(maxIter=10000, msMaxIter = 10000))", sep = "")
+                                      control = ", control, ")", sep = "")
                 eval(parse(text=themodelForm))
                 outputModel[[paste("ReducedModel", i, sep = "")]] <- themodel
                 rm(themodelForm)
@@ -170,9 +156,9 @@ setMethod("mixedModelSelection",
                     rm(j)
                   }
                   themodelForm <- paste("themodel <- lme(", reducedFomu, ",",
-                                        randomArg, ",",
+                                        "random = ", random, ",",
                                         "data = data,
-                                        control = lmeControl(maxIter=10000, msMaxIter = 10000))", sep = "")
+                                        control = ", control, ")", sep = "")
                   eval(parse(text=themodelForm))
                   outputModel[[paste("ReducedModel", nrow(output)+1, sep = "")]] <- themodel
                   rm(themodelForm)
@@ -206,9 +192,9 @@ setMethod("mixedModelSelection",
               }
               
               themodelForm <- paste("themodel <- lme(", reducedFomu, ",",
-                                    randomArg, ",",
+                                    "random = ", random, ",",
                                     "data = data,
-                                    control = lmeControl(maxIter=10000, msMaxIter = 10000))", sep = "")
+                                    control = ", control, ")", sep = "")
               eval(parse(text=themodelForm))
               outputModel[[paste("ReducedModel", nrow(output)+1, sep = "")]] <- themodel
               rm(themodelForm)
@@ -231,42 +217,19 @@ setMethod("mixedModelSelection",
 #' @export
 #' @rdname mixedModelSelection
 setMethod("mixedModelSelection",
-          signature = signature(data = "data.frame",
-                                DV = "character",
-                                IDV = "character",
-                                maxInteraction = "numeric",
-                                randomMethod = "character",
-                                randomTerm = "character",
-                                slopeTerm = "character"),
-          definition = function(data,
-                                DV,
-                                IDV,
-                                maxInteraction,
-                                randomMethod,
-                                randomTerm,
-                                slopeTerm){
-            return(data = data.table(data), DV, IDV, maxInteraction, randomMethod,
-                   randomTerm, slopeTerm)
-          })
-
-#' @export
-#' @rdname mixedModelSelection
-setMethod("mixedModelSelection",
           signature = signature(data = "data.table",
                                 DV = "character",
                                 IDV = "character",
                                 maxInteraction = "missing",
-                                randomMethod = "character",
-                                randomTerm = "character",
-                                slopeTerm = "character"),
+                                random = "character",
+                                control = "character"),
           definition = function(data,
                                 DV,
                                 IDV,
-                                randomMethod,
-                                randomTerm,
-                                slopeTerm){
-            return(data, DV, IDV, maxInteraction = 1, randomMethod,
-                   randomTerm, slopeTerm)
+                                random,
+                                control){
+            return(data, DV, IDV, maxInteraction = 1,
+                   random, control)
           })
 
 #' @export
@@ -276,62 +239,18 @@ setMethod("mixedModelSelection",
                                 DV = "character",
                                 IDV = "character",
                                 maxInteraction = "numeric",
-                                randomMethod = "missing",
-                                randomTerm = "character",
-                                slopeTerm = "character"),
+                                random = "character",
+                                control = "missing"),
           definition = function(data,
                                 DV,
                                 IDV,
                                 maxInteraction,
-                                randomTerm,
-                                slopeTerm){
-            return(data, DV, IDV, maxInteraction, randomMethod = "intercept",
-                   randomTerm, slopeTerm)
+                                random){
+            return(data, DV, IDV, maxInteraction, random,
+                   control = "lmeControl()")
           })
 
 
-
-#' @export
-#' @rdname mixedModelSelection
-setMethod("mixedModelSelection",
-          signature = signature(data = "data.frame",
-                                DV = "character",
-                                IDV = "character",
-                                maxInteraction = "missing",
-                                randomMethod = "character",
-                                randomTerm = "character",
-                                slopeTerm = "character"),
-          definition = function(data,
-                                DV,
-                                IDV,
-                                randomMethod,
-                                randomTerm,
-                                slopeTerm){
-            return(data = data.table(data), DV, IDV, maxInteraction = 1, 
-                   randomMethod,
-                   randomTerm, slopeTerm)
-          })
-
-#' @export
-#' @rdname mixedModelSelection
-setMethod("mixedModelSelection",
-          signature = signature(data = "data.frame",
-                                DV = "character",
-                                IDV = "character",
-                                maxInteraction = "numeric",
-                                randomMethod = "missing",
-                                randomTerm = "character",
-                                slopeTerm = "character"),
-          definition = function(data,
-                                DV,
-                                IDV,
-                                maxInteraction,
-                                randomTerm,
-                                slopeTerm){
-            return(data = data.table(data), DV, IDV, maxInteraction,
-                   randomMethod = "intercept",
-                   randomTerm, slopeTerm)
-          })
 
 #' @export
 #' @rdname mixedModelSelection
@@ -340,16 +259,12 @@ setMethod("mixedModelSelection",
                                 DV = "character",
                                 IDV = "character",
                                 maxInteraction = "missing",
-                                randomMethod = "missing",
-                                randomTerm = "character",
-                                slopeTerm = "character"),
+                                random = "character",
+                                control = "missing"),
           definition = function(data,
                                 DV,
                                 IDV,
-                                randomTerm,
-                                slopeTerm){
-            return(data = data.table(data), DV, IDV, maxInteraction = 1,
-                   randomMethod = "intercept",
-                   randomTerm, slopeTerm)
+                                random){
+            return(data, DV, IDV, maxInteraction = 1, 
+                   random, control = "lmeControl()")
           })
-
