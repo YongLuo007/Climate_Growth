@@ -13,8 +13,11 @@ analysesData[,':='(PlotID = factor(PlotID, levels = theplotidlebal, labels = the
 studyspecies <- c("JP", "TA", "BS")
 AllModels <- list()
 AllResults <- data.table(Model = character(),
-                         Formula = character(),
-                         Description = character(),
+                         IDV_Base = character(),
+                         Direction = character(),
+                         IDV_Processed = character(),
+                         IDV_Length = numeric(),
+                         All_Significant = logical(),
                          DIC = numeric(),
                          AIC = numeric(),
                          BIC = numeric(),
