@@ -39,11 +39,12 @@ for(indispecies in studyspecies){
                     Dominancectd = log(meanDomi) - mean(log(meanDomi)))]
   
   
-  modelselection <- mixedModelSelection(data = speciesData, DV = "logY", 
+  modelselection <- mixedModelSelection(data = speciesData, 
+                                        DV = "logY", 
                                         maxInteraction = 3,
                                         IDV = c("logDBHctd", "Yearctd", "logHctd", "Dominancectd"),
-                                        random = "~1+Yearctd|PlotID", 
-                                        control = "lmeControl(opt=\"optim\", maxIter=10000, msMaxIter = 10000)")
+                                        random = ~1+Yearctd|PlotID, 
+                                        control = lmeControl(opt="optim", maxIter=10000, msMaxIter = 10000))
   
   AllResults <- rbind(AllResults, modelselection$modelSummary[, Species:=indispecies])
   names(modelselection$modelOutput) <- paste(indispecies, "_", 
