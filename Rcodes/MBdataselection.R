@@ -121,13 +121,6 @@ length(unique(allPSP$uniTreeID)) # 45861
 simplePSP <- allPSP[,.(PlotID, uniTreeID, Species,IniYear = Year, IniFA = FA,
                        IniDBH = DBH, IniHeight = Height, FinYear, 
                        FinDBH, FinHeight, FinFA)]
-CIindex <- read.csv(file.path(workPath, "data", "CIdata.csv"),header = TRUE,
-                    stringsAsFactors = FALSE) %>%
-  data.table
-
-setnames(CIindex, "Year", "IniYear")
-CIindex <- unique(CIindex, by = c("uniTreeID", "IniYear"))
-simplePSP <- setkey(simplePSP, uniTreeID, IniYear)[setkey(CIindex, uniTreeID, IniYear), nomatch = 0]
 
 inputData <- data.table(data.frame(simplePSP))
 # "AS" 
@@ -159,18 +152,7 @@ inputData[Species == "WE",species:="white elm"]
 # "WS"
 inputData[Species == "WS",species:="white spruce"]
 
-source("~/GitHub/landwebNRV/landwebNRV/R/biomassCalculation.R")
-inputData$IniBiomass <- biomassCalculation(species = inputData$species,
-                                                 DBH = inputData$IniDBH, 
-                                                 height = inputData$IniHeight)$biomass
-inputData$FinBiomass <- biomassCalculation(species = inputData$species,
-                                                 DBH = inputData$FinDBH,
-                                                 height = inputData$FinHeight)$biomass
-inputData[,':='(IniBA = 3.1415926*((IniDBH/2)^2), 
-                FinBA = 3.1415926*((FinDBH/2)^2))]
-inputData[,':='(Year = (FinYear+IniYear)/2,
-                BAGR = (FinBA-IniBA)/(FinYear-IniYear),
-                BiomassGR = (FinBiomass - IniBiomass)/(FinYear-IniYear))]
+
 write.csv(inputData, file.path(workPath, "data","MBdataSimplified.csv"),
           row.names = FALSE)
 

@@ -5,8 +5,19 @@ workPath <- "~/GitHub/Climate_Growth"
 thedata <- read.csv(file.path(workPath, "data", "MBdataSimplified.csv"), header = TRUE,
                          stringsAsFactors = FALSE) %>%
   data.table
-# in order to make a stand biomass inference
-# a plot that have minimum 20 trees a selected
+
+source("~/GitHub/landwebNRV/landwebNRV/R/biomassCalculation.R")
+inputData$IniBiomass <- biomassCalculation(species = inputData$species,
+                                           DBH = inputData$IniDBH, 
+                                           height = inputData$IniHeight)$biomass
+inputData$FinBiomass <- biomassCalculation(species = inputData$species,
+                                           DBH = inputData$FinDBH,
+                                           height = inputData$FinHeight)$biomass
+inputData[,':='(IniBA = 3.1415926*((IniDBH/2)^2), 
+                FinBA = 3.1415926*((FinDBH/2)^2))]
+inputData[,':='(Year = (FinYear+IniYear)/2,
+                BAGR = (FinBA-IniBA)/(FinYear-IniYear),
+                BiomassGR = (FinBiomass - IniBiomass)/(FinYear-IniYear))]
 
 thedata[,NofTree:=length(unique(uniTreeID)), by = c("Year", "PlotID")]
 thedata[,MinNofTree:=min(NofTree), by = PlotID]
