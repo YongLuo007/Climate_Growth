@@ -10,8 +10,11 @@ analysesData[,':='(PlotID = factor(PlotID, levels = theplotidlebal, labels = the
 
 AllModels <- list()
 AllResults <- data.table(Model = character(),
-                         Formula = character(),
-                         Description = character(),
+                         IDV_Base = character(),
+                         Direction = character(),
+                         IDV_Processed = character(),
+                         IDV_Length = numeric(),
+                         All_Significant = logical(),
                          DIC = numeric(),
                          AIC = numeric(),
                          BIC = numeric(),
@@ -19,12 +22,13 @@ AllResults <- data.table(Model = character(),
                          ConR2 = numeric(),
                          Species = character())
 
+
 testSpecieses <- c("JP", "BS", "TA")
 # testSpecieses <- c("PL", "AW", "SW", "SB", "PJ")
 i <- 1
 source(file.path(workPath, "Rcodes", "Rfunctions", "mixedModelSelection.R"))
-for(testspecies in testSpecieses){
-  speciesData <- analysesData[Species == testspecies,]
+for(indispecies in testSpecieses){
+  speciesData <- analysesData[Species == indispecies,]
   speciesData[,':='(logY = log(BiomassGR), 
                     logDBHctd = log(IniDBH)-mean(log(IniDBH)), 
                     Yearctd = Year-mean(Year),
@@ -47,4 +51,5 @@ for(testspecies in testSpecieses){
   
 }
 
-save.image(file.path(workPath, "Results","BiomassGR_Year_modelselection.RData"))
+save.image(file.path(workPath, "Results",
+                     paste("BiomassGR_Year_modelselection.RData", sep = "")))
