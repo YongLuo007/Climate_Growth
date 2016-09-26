@@ -7,6 +7,11 @@
 #' 
 #' @param maxInteraction numeric, specify the maximum interaction among predictors
 #'                                default is 1, which means no interaction terms
+#'
+#' @param ICTerm character specify the which information critiria that will been involved in 
+#'                         the selection. e.g., AIC, BIC, DIC
+#'                         default is AIC. 
+#'                         
 #' 
 #' @param ... other arguements in nlme::lme function, excluding formula.
 #'                  e.g., data, random, control and so on
@@ -38,6 +43,7 @@ setGeneric("mixedModelSelection",
            function(DV,
                     IDV,
                     maxInteraction,
+                    ICTerm,
                     ...) {
              standardGeneric("mixedModelSelection")
            })
@@ -47,21 +53,20 @@ setGeneric("mixedModelSelection",
 setMethod("mixedModelSelection",
           signature = signature(DV = "character",
                                 IDV = "character",
-                                maxInteraction = "numeric"),
+                                maxInteraction = "numeric",
+                                ICTerm = "character"),
           definition = function(DV,
                                 IDV,
                                 maxInteraction,
+                                ICTerm,
                                 ...){
             allIDV <- IDV
             output <- data.table(Model = character(),
-                                 IDV_Base = character(),
-                                 Direction = character(),
-                                 IDV_Processed = character(),
-                                 IDV_Length = numeric(),
-                                 All_Significant = logical(),
-                                 DIC = numeric(), AIC = numeric(), BIC = numeric(),
-                                 MarR2 = numeric(), ConR2 = numeric())
-            outputModel <- list()
+                                 Formula = character(),
+                                 IC = numeric(),
+                                 deltaIC = numeric(),
+                                 MarR2 = numeric(),
+                                 ConR2 = numeric())
             if(maxInteraction > 1){
               for(i in 2:maxInteraction){
                 tempV <- data.frame(t(combinat::combn(IDV, i)))
@@ -78,18 +83,12 @@ setMethod("mixedModelSelection",
             # full model
             modelFormula <- paste(DV, "~", paste(allIDV, collapse = "+"), sep = "")
             themodel <- nlme::lme(as.formula(modelFormula),...)
-            outputModel[["Full"]] <- themodel
             tTable <- data.frame(summary(themodel)$tTable)
             reducedIDV <- row.names(tTable)[tTable$p.value < 0.05 & row.names(tTable) != "(Intercept)"]
             outputAdd <- data.table(Model = "Full",
-                                    IDV_Base = "NONE",
-                                    Direction = "NONE",
-                                    IDV_Processed = "NONE",
-                                    IDV_Length = length(allIDV),
-                                    All_Significant = length(allIDV)==length(reducedIDV),
-                                    DIC = as.numeric(MuMIn::DIC(themodel)),
-                                    AIC = as.numeric(AIC(themodel)),
-                                    BIC = as.numeric(BIC(themodel)),
+                                    Formula = "FULL",
+                                    IC = getIC(model = themodel, x = ICTerm),
+                                    deltaIC = 0,
                                     MarR2 = as.numeric(MuMIn::r.squaredGLMM(themodel)[1]),
                                     ConR2 = as.numeric(MuMIn::r.squaredGLMM(themodel)[2]))
             output <- rbind(output, outputAdd)
@@ -103,128 +102,144 @@ setMethod("mixedModelSelection",
                 tTable <- data.frame(summary(themodel)$tTable)
                 reducedIDV <- row.names(tTable)[tTable$p.value < 0.05 & row.names(tTable) != "(Intercept)"]
                 if(length(reducedIDV) == length(prevvari)){
-                  outputModel[["BaseModel"]] <- themodel
                   BaseIDV <- paste(reducedIDV, collapse = ", ")
+                  BaseIC <- getIC(themodel, x = ICTerm)
+                  BaseIDVindi <- reducedIDV
+                  thebestmodel <- themodel
+                  thebestIDV <- reducedIDV
                   outputAdd <- data.table(Model = "BaseModel",
-                                          IDV_Base = BaseIDV,
-                                          Direction = "BaseModel",
-                                          IDV_Processed = "NONE",
-                                          IDV_Length = length(reducedIDV),
-                                          All_Significant = TRUE,
-                                          DIC = as.numeric(MuMIn::DIC(themodel)),
-                                          AIC = as.numeric(AIC(themodel)),
-                                          BIC = as.numeric(BIC(themodel)),
+                                          Formula = reducedFomu,
+                                          IC = BaseIC,
+                                          deltaIC = 0,
                                           MarR2 = as.numeric(MuMIn::r.squaredGLMM(themodel)[1]),
                                           ConR2 = as.numeric(MuMIn::r.squaredGLMM(themodel)[2]))
                   output <- rbind(output, outputAdd)
+                  output[, deltaIC:=IC-BaseIC]
                   rm(outputAdd)
                 }
                 rm(tTable, reducedFomu, themodel)
               }
             }
+            
             rm(i, prevvari)
-            
-            allsignificantV <- reducedIDV
-            # drop one variable from all significant variables
-            if(length(allsignificantV) > 1){
-              tempV <- data.frame(t(combinat::combn(allsignificantV,
-                                                    (length(allsignificantV)-1))),
-                                  stringsAsFactors = FALSE)
-              for(i in 1:nrow(tempV)){
-                reducedIDV <- as.character(tempV[i,])
-                reducedFomu <- paste(DV, "~", paste(reducedIDV, collapse = "+"), sep = "")
-                themodel <- nlme::lme(as.formula(reducedFomu),...)
-                outputModel[[paste("ReducedModel", nrow(output)-1, sep = "")]] <- themodel
-                droppedV <- paste(allsignificantV[!(allsignificantV %in% reducedIDV)], collapse=", ")
-                tTable <- data.frame(summary(themodel)$tTable)
-                sigV <- row.names(tTable)[tTable$p.value < 0.05 & row.names(tTable) != "(Intercept)"]
-                outputAdd <- data.table(Model = paste("ReducedModel", nrow(output)-1, sep = ""),
-                                        IDV_Base = BaseIDV,
-                                        Direction = "drop",
-                                        IDV_Processed = paste(droppedV, collapse = ", "),
-                                        IDV_Length = length(reducedIDV),
-                                        All_Significant = length(reducedIDV) == length(sigV),
-                                        DIC = as.numeric(MuMIn::DIC(themodel)),
-                                        AIC = as.numeric(AIC(themodel)),
-                                        BIC = as.numeric(BIC(themodel)),
-                                        MarR2 = as.numeric(MuMIn::r.squaredGLMM(themodel)[1]),
-                                        ConR2 = as.numeric(MuMIn::r.squaredGLMM(themodel)[2]))
-                output <- rbind(output, outputAdd)
-                rm(outputAdd, reducedFomu, reducedIDV, tTable)
-              }
-              rm(i, tempV)
-            }
-            
-            # add one variable to all significant variables from non-significant variables
-            nonsignificantV <- allIDV[!(allIDV %in% allsignificantV)]
-            nonsignificantVLength <- length(nonsignificantV)
-            k <- 1
-            significantList <- list()
-            AICS <- c()
-            for(addV in nonsignificantV){
-              reducedIDV <- c(allsignificantV, addV)
-              reducedFomu <- paste(DV, "~", paste(reducedIDV, collapse = "+"), sep = "")
-              themodel <- nlme::lme(as.formula(reducedFomu),...)
-              outputModel[[paste("ExpandedModel", nrow(output)-1, sep = "")]] <- themodel
-              tTable <- data.frame(summary(themodel)$tTable)
-              sigV <- row.names(tTable)[tTable$p.value < 0.05 & row.names(tTable) != "(Intercept)"]
-              outputAdd <- data.table(Model = paste("ExpandedModel", nrow(output)-1, sep = ""),
-                                      IDV_Base = BaseIDV,
-                                      Direction = "add",
-                                      IDV_Processed = paste(addV, collapse = ", "),
-                                      IDV_Length = length(reducedIDV),
-                                      All_Significant = length(reducedIDV) == length(sigV),
-                                      DIC = as.numeric(MuMIn::DIC(themodel)),
-                                      AIC = as.numeric(AIC(themodel)),
-                                      BIC = as.numeric(BIC(themodel)),
-                                      MarR2 = as.numeric(MuMIn::r.squaredGLMM(themodel)[1]),
-                                      ConR2 = as.numeric(MuMIn::r.squaredGLMM(themodel)[2]))
-              if(length(reducedIDV) == length(sigV)){
-                significantList[[k]] <- reducedIDV
-                k <- k+1
-                AICS <- c(AICS, as.numeric(AIC(themodel)))
-              }
-              output <- rbind(output, outputAdd)
-              rm(outputAdd, reducedFomu, reducedIDV, themodel)
-            }
-            rm(allsignificantV, nonsignificantV)
-            for(i in 1:(nonsignificantVLength-1)){
-              if(k > 1){
-                nonsignificantV <- allIDV[!(allIDV %in% significantList[[which.min(AICS)]])]
-                allsignificantV <- significantList[[which.min(AICS)]]
-                addedIDVs <- allsignificantV[!(allsignificantV %in% unlist(strsplit(BaseIDV, ", ", fixed = TRUE)))]
-                k <- 1
-                significantList <- list()
-                for(addV in nonsignificantV){
-                  reducedIDV <- c(allsignificantV, addV)
-                  reducedFomu <- paste(DV, "~", paste(reducedIDV, collapse = "+"), sep = "")
-                  themodel <- nlme::lme(as.formula(reducedFomu),...)
-                  outputModel[[paste("ExpandedModel", nrow(output)-1, sep = "")]] <- themodel
-                  tTable <- data.frame(summary(themodel)$tTable)
-                  sigV <- row.names(tTable)[tTable$p.value < 0.05 & row.names(tTable) != "(Intercept)"]
-                  outputAdd <- data.table(Model = paste("ExpandedModel", nrow(output)-1, sep = ""),
-                                          IDV_Base = BaseIDV,
-                                          Direction = "add",
-                                          IDV_Processed = paste(c(addedIDVs, addV), collapse = ", "),
-                                          IDV_Length = length(reducedIDV),
-                                          All_Significant = length(reducedIDV) == length(sigV),
-                                          DIC = as.numeric(MuMIn::DIC(themodel)),
-                                          AIC = as.numeric(AIC(themodel)),
-                                          BIC = as.numeric(BIC(themodel)),
-                                          MarR2 = as.numeric(MuMIn::r.squaredGLMM(themodel)[1]),
-                                          ConR2 = as.numeric(MuMIn::r.squaredGLMM(themodel)[2]))
-                  if(length(reducedIDV) == length(sigV)){
-                    significantList[[k]] <- reducedIDV
-                    k <- k+1
-                  }
-                  output <- rbind(output, outputAdd)
-                  rm(outputAdd, reducedFomu, reducedIDV, themodel)
-                }
-                rm(allsignificantV, nonsignificantV)
+            # drop variables from base model and check the ICs
+            preIDV <- character()
+            for(i in 1:length(thebestIDV)){
+              if(length(preIDV) != length(thebestIDV)){
+                preIDV <- thebestIDV
+                a <- dropOneVariableFun(output = output, testModel = thebestmodel,
+                                      testIDV = thebestIDV, DV = DV, ICTerm = ICTerm, ...)
+                thebestIDV <- a$thebestIDV
+                thebestmodel <- a$thebestmodel
+                output <- a$output
               }
             }
-            return(invisible(list(modelSummary = output, modelOutput = outputModel)))
+            rm(preIDV, a)
+            preIDV <- character()
+            for(i in 1:length(allIDV)){
+              if(length(preIDV) != length(thebestIDV)){
+                preIDV <- thebestIDV
+                a <- addOneVariableFun(allIDV = allIDV, output = output, 
+                                       testModel = thebestmodel,
+                                        testIDV = thebestIDV, DV = DV, ICTerm = ICTerm, ...)
+                thebestIDV <- a$thebestIDV
+                thebestmodel <- a$thebestmodel
+                output <- a$output
+              }
+            }
+            output$deltaIC <- output$IC-output[Model == "BaseModel",]$IC
+            setnames(output, c("IC", "deltaIC"), paste(c("", "delta"), ICTerm, sep = ""))
+            return(invisible(list(modelSummary = output, bestModel = thebestmodel,
+                                  bestIDV = thebestIDV)))
           })
+
+
+getIC <- function(model, x){
+  if(x == "AIC"){
+    IC <- as.numeric(AIC(model))
+  } else if (x == "BIC"){
+    IC <- as.numeric(BIC(model))
+  } else if (x == "DIC"){
+    IC <- as.numeric(MuMIn::DIC(model))
+  }
+  return(IC)
+}
+
+dropOneVariableFun <- function(output, testModel, testIDV, DV, ICTerm, ...){
+  BaseIC <- getIC(testModel, x = ICTerm)
+  thebestIDV <- testIDV
+  thebestmodel <- testModel
+  if(length(testIDV) > 1){
+    tempV <- data.frame(t(combinat::combn(testIDV,
+                                          (length(testIDV)-1))), # drop one variable
+                        stringsAsFactors = FALSE)
+    for(i in 1:nrow(tempV)){
+      reducedIDV <- as.character(tempV[i,])
+      reducedFomu <- paste(DV, "~", paste(reducedIDV, collapse = "+"), sep = "")
+      themodel <- nlme::lme(as.formula(reducedFomu),...)
+      if(getIC(themodel, x = ICTerm)-BaseIC < 2 & getIC(themodel, x = ICTerm) < min(output$IC)){
+        thebestmodel <- themodel
+        thebestIDV <- reducedIDV
+      }
+      outputAdd <- data.table(Model = "ReducedModel",
+                              Formula = reducedFomu,
+                              IC = getIC(themodel, x = ICTerm),
+                              deltaIC = getIC(themodel, x = ICTerm) - BaseIC,
+                              MarR2 = as.numeric(MuMIn::r.squaredGLMM(themodel)[1]),
+                              ConR2 = as.numeric(MuMIn::r.squaredGLMM(themodel)[2]))
+      output <- rbind(output, outputAdd)
+      rm(outputAdd, reducedFomu, reducedIDV, themodel)
+    }
+    rm(i, tempV)
+  } else {
+    reducedFomu <- paste(DV, "~NULL", sep = "")
+    themodel <- nlme::lme(as.formula(reducedFomu),...)
+    outputAdd <- data.table(Model = "NULL",
+                            Formula = reducedFomu,
+                            IC = getIC(themodel, x = ICTerm),
+                            deltaIC = getIC(themodel, x = ICTerm) - BaseIC,
+                            MarR2 = as.numeric(MuMIn::r.squaredGLMM(themodel)[1]),
+                            ConR2 = as.numeric(MuMIn::r.squaredGLMM(themodel)[2]))
+    output <- rbind(output, outputAdd)
+    if(getIC(themodel, x = ICTerm)-BaseIC <= 2){
+      thebestmodel <- themodel
+      thebestIDV <- "NULL"
+    }
+    rm(reducedFomu, themodel, outputAdd)
+  }
+  return(list(thebestmodel = thebestmodel, thebestIDV = thebestIDV, output = output))
+}
+
+
+addOneVariableFun <- function(allIDV, output, testModel, testIDV, DV, ICTerm, ...){
+  addedIDVs <- allIDV[!(allIDV %in% testIDV)]
+  BaseIC <- getIC(testModel, x = ICTerm)
+  thebestIDV <- testIDV
+  thebestmodel <- testModel
+  for(i in 1:length(addedIDVs)){
+    addedIDV <- c(testIDV, addedIDVs[i])
+    addedFomu <- paste(DV, "~", paste(addedIDV, collapse = "+"), sep = "")
+    themodel <- nlme::lme(as.formula(addedFomu),...)
+    if(getIC(themodel, x = ICTerm)-BaseIC < -2 & getIC(themodel, x = ICTerm) < min(output$IC)){
+      thebestmodel <- themodel
+      thebestIDV <- reducedIDV
+    }
+    outputAdd <- data.table(Model = "ExpandedModel",
+                            Formula = addedFomu,
+                            IC = getIC(themodel, x = ICTerm),
+                            deltaIC = getIC(themodel, x = ICTerm) - BaseIC,
+                            MarR2 = as.numeric(MuMIn::r.squaredGLMM(themodel)[1]),
+                            ConR2 = as.numeric(MuMIn::r.squaredGLMM(themodel)[2]))
+    output <- rbind(output, outputAdd)
+    rm(outputAdd, addedFomu, addedIDV, themodel)
+  }
+  rm(i)
+  return(list(thebestmodel = thebestmodel, thebestIDV = thebestIDV, output = output))
+}
+
+
+
+
 
 
 #' @export
@@ -232,9 +247,38 @@ setMethod("mixedModelSelection",
 setMethod("mixedModelSelection",
           signature = signature(DV = "character",
                                 IDV = "character",
-                                maxInteraction = "missing"),
+                                maxInteraction = "missing",
+                                ICTerm = "character"),
+          definition = function(DV,
+                                IDV,
+                                ICTerm,
+                                ...){
+            return(DV, IDV, maxInteraction = 1, ICTerm, ...)
+          })
+
+#' @export
+#' @rdname mixedModelSelection
+setMethod("mixedModelSelection",
+          signature = signature(DV = "character",
+                                IDV = "character",
+                                maxInteraction = "numeric",
+                                ICTerm = "missing"),
+          definition = function(DV,
+                                IDV,
+                                maxInteraction,
+                                ...){
+            return(DV, IDV, maxInteraction, ICTerm = "AIC", ...)
+          })
+
+#' @export
+#' @rdname mixedModelSelection
+setMethod("mixedModelSelection",
+          signature = signature(DV = "character",
+                                IDV = "character",
+                                maxInteraction = "missing",
+                                ICTerm = "missing"),
           definition = function(DV,
                                 IDV,
                                 ...){
-            return(DV, IDV, maxInteraction = 1, ...)
+            return(DV, IDV, maxInteraction = 1, ICTerm = "AIC", ...)
           })
