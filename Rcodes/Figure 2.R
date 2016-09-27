@@ -55,7 +55,7 @@ OtherVariable[, ':='(y1 = 5, y2 = 4, Year = 1993, DBH1 = paste(DBH, "cm"))]
 
 Fig2_left <- ggplot(data = ThreeDGrowthvsYearandDom[Main == 0], aes(x = Year, y = PredictedBGR))+
   geom_line(aes(group = Dominance, col = Dominance))+
-  scale_colour_continuous(low = "#FF0000", high = "#00FF00", breaks = seq(0, 100, by = 20))+
+  scale_colour_continuous(name = "RBI", low = "#FF0000", high = "#00FF00", breaks = seq(0, 100, by = 20))+
   geom_text(data = data.frame(Year = rep(1985, 3), y = c(2, 2, 3), label = c("a", "b", "c"),
                               Species = c("Jack pine", "Trembling aspen", "Black spruce")),
             aes(x = Year, y = y, label = label), size = 8)+
@@ -76,10 +76,9 @@ Fig2_left <- ggplot(data = ThreeDGrowthvsYearandDom[Main == 0], aes(x = Year, y 
         axis.title = element_text(size = 15),
         strip.background = element_blank(),
         strip.text = element_blank(),
-        legend.position = c(0.4, 0.95),
+        legend.position = c(0.1, 0.8),
         legend.text = element_text(size = 13),
-        legend.title = element_text(size = 15),
-        legend.direction = "horizontal")
+        legend.title = element_text(size = 15))
 
 for(indispecies in c("JP", "TA", "BS")){
   a <- density(analysesData[Species == indispecies, ]$Dominance_indiBiomass,
@@ -96,16 +95,19 @@ alldensitydata[, Species := factor(Species, levels=c("JP", "TA", "BS"),
                                    labels = c("Jack pine", "Trembling aspen", "Black spruce"))]
 meanDomData <- analysesData[,.(minDom = mean(Dominance_indiBiomass)), by = Species][
   ,':='(Species = factor(Species, levels=c("JP", "TA", "BS"),
-                    labels = c("Jack pine", "Trembling aspen", "Black spruce")))]
+                    labels = c("Jack pine", "Trembling aspen", "Black spruce")),
+        Density0 = -0.03, Density10 = 0.03)]
 Fig2_right <- ggplot(data = alldensitydata[,':='(Density0 = -Density/2, Density10 = Density/2)],
                      aes(x = Dominance, y = Density0))+
   geom_segment(aes(xend = Dominance, yend = Density10, col = Dominance))+
-  geom_segment(data = analysesData[])
-facet_wrap(~Species, nrow = 3)+
+  geom_segment(data = meanDomData, aes(x = minDom, xend = minDom, y = Density0, yend = Density10),
+               colour = "gray", size = 1)+
+  facet_wrap(~Species, nrow = 3)+
   coord_flip()+
   scale_colour_continuous(low = "#FF0000", high = "#00FF00", breaks = seq(0, 100, by = 20))+
   scale_y_continuous(name = "Density", limits = c(-0.04, 0.04),
                      breaks = seq(-0.04, 0.04, by = 0.04))+
+  scale_x_continuous(name = "RBI")+
   theme_bw()+
   # annotate("segment", x=-Inf, xend=Inf, y=-Inf, yend=-Inf, size = 1)+
   annotate("segment", x=-Inf, xend=-Inf, y=-Inf, yend=Inf, size = 1)+
@@ -113,11 +115,10 @@ facet_wrap(~Species, nrow = 3)+
         panel.grid.minor = element_blank(),
         panel.border = element_blank(),
         axis.line.x = element_line(size = 1, colour = "black"),
-        axis.text.x = element_text(size = 12),
-        axis.text.y = element_blank(),
-        axis.title.x = element_text(size = 15),
-        axis.title.y = element_blank(),
-        axis.ticks.y = element_blank(),
+        axis.line.y = element_line(size = 1, colour = "black"),
+        axis.text = element_text(size = 12),
+        axis.title = element_text(size = 15),
+        # axis.ticks.y = element_blank(),
         strip.background = element_blank(),
         strip.text = element_blank(),
         legend.position = "none")
@@ -133,14 +134,8 @@ plotlayout <- rbind(c(1, 1, 1, 2))
 c <- grid.arrange(Fig2_left_Grob, Fig2_right_Grob,
                   layout_matrix = plotlayout)
 
-ggsave(file = file.path(workPath, "CompetitionEffectsWithYearByDominance.png"), c,
-       width = 10, height = 15)
-setwd(orgPath)
-
-
-
-ggsave(file = file.path(workPath, "TablesFigures","simulatedBGRTemporalTrends.png"), Fig_a_3D,
-       width = 13.3, height = 5.8, units = "in")
+ggsave(file = file.path(workPath, "TablesFigures", "Fig2.png"), c,
+       width = 10, height = 10)
 
 
 
