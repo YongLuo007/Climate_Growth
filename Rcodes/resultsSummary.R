@@ -11,7 +11,7 @@ OverallResults <- data.table(Species = character(),
                              DF = numeric(), t.value = numeric(),
                              p.value = numeric())
 for(indispecies in c("JP", "TA", "BS")){
-  themodel <- thebestmodel[[paste(indispecies, "_bestModel", sep = "")]]
+  themodel <- allbestmodels[[indispecies]]
   
   coeff <- data.frame(summary(themodel)$tTable)
   coeff$Variable <- row.names(coeff)
