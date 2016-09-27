@@ -1,4 +1,5 @@
 rm(list = ls())
+library(dplyr); library(SpaDES); library(nlme); library(data.table)
 workPath <- "~/GitHub/Climate_Growth"
 analysesData <- read.csv(file.path(workPath, "data", "MBdatafinal.csv"), header = TRUE,
                          stringsAsFactors = FALSE) %>% data.table
@@ -8,16 +9,11 @@ analysesData[,':='(PlotID = factor(PlotID, levels = theplotidlebal, labels = the
                    uniTreeID = factor(uniTreeID, levels = thetreeidlebal, 
                                       labels = thetreeidlebal))]
 
-AllModels <- list()
+
 AllResults <- data.table(Model = character(),
-                         IDV_Base = character(),
-                         Direction = character(),
-                         IDV_Processed = character(),
-                         IDV_Length = numeric(),
-                         All_Significant = logical(),
-                         DIC = numeric(),
+                         Formula = character(),
                          AIC = numeric(),
-                         BIC = numeric(),
+                         deltaAIC = numeric(),
                          MarR2 = numeric(),
                          ConR2 = numeric(),
                          Species = character())
@@ -39,17 +35,13 @@ for(indispecies in testSpecieses){
   modelselection <- mixedModelSelection(DV = "logY", 
                                         IDV = c("logDBHctd", "Yearctd", "logHctd", "Dominancectd"),
                                         maxInteraction = 3,
+                                        ICTerm = "AIC",
                                         data = speciesData, 
                                         random = ~1+Yearctd|PlotID/uniTreeID, 
                                         control = lmeControl(opt="optim", maxIter=10000, msMaxIter = 10000))
   
   AllResults <- rbind(AllResults, modelselection$modelSummary[, Species:=indispecies])
-  names(modelselection$modelOutput) <- paste(indispecies, "_", 
-                                             names(modelselection$modelOutput),
-                                             sep = "")
-  AllModels <- append(AllModels, modelselection$modelOutput)
-  
 }
 
 save.image(file.path(workPath, "Results",
-                     paste("BiomassGR_Year_modelselection.RData", sep = "")))
+                     paste("_BiomassGR_Year_modelselection.RData", sep = "")))
