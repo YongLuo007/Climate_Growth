@@ -16,7 +16,7 @@ ThreeDGrowthvsYearandDom <- data.table(Species = character(), Dominance = numeri
                                        Main = numeric())
 OtherVariable <- data.table(Species = character(), DBH = numeric(), H = numeric())
 for(indispecies in c("JP", "BS", "TA")){
-  themodel <- thebestmodel[[paste(indispecies, "_bestModel", sep = "")]]
+  themodel <- allbestmodels[[paste(indispecies)]]
   newdata <- data.table(expand.grid(Year = seq(min(analysesData[Species == indispecies,]$Year), 
                                                max(analysesData[Species == indispecies,]$Year),
                                                length = 100),
@@ -53,17 +53,19 @@ OtherVariable$Species <- factor(OtherVariable$Species,
                                 labels = c("Jack pine", "Trembling aspen", "Black spruce"))
 OtherVariable[, ':='(y1 = 5, y2 = 4, Year = 1993, DBH1 = paste(DBH, "cm"))]
 
-Fig_a_3D <- ggplot(data = ThreeDGrowthvsYearandDom[Main == 0], aes(x = Year, y = PredictedBGR))+
+Fig2_left <- ggplot(data = ThreeDGrowthvsYearandDom[Main == 0], aes(x = Year, y = PredictedBGR))+
   geom_line(aes(group = Dominance, col = Dominance))+
   scale_colour_continuous(low = "#FF0000", high = "#00FF00", breaks = seq(0, 100, by = 20))+
-  geom_text(data = data.frame(Year = 1985, y = 3, label = "a", Species = "Jack pine"),
+  geom_text(data = data.frame(Year = rep(1985, 3), y = c(2, 2, 3), label = c("a", "b", "c"),
+                              Species = c("Jack pine", "Trembling aspen", "Black spruce")),
             aes(x = Year, y = y, label = label), size = 8)+
   geom_line(data = ThreeDGrowthvsYearandDom[Main == 1], aes(x = Year, y = PredictedBGR),
             colour = "black", size = 1)+
-  facet_wrap(~Species)+
+  facet_wrap(~Species, nrow = 3, scales = "free_y")+
   scale_x_continuous(name = "Year", limits = c(1985, 2010), breaks = seq(1985, 2010, by = 5))+
-  scale_y_continuous(name = expression(atop("Aboveground biomass growth rate", paste("(Kg ", year^{-1}, ")"))),
-                     limits = c(0, 3), breaks = seq(0, 3, by = 0.5))+
+  scale_y_continuous(name = expression(atop("Aboveground biomass growth rate", paste("(Kg ", year^{-1}, ")"))))+
+  annotate("segment", x=-Inf, xend=Inf, y=-Inf, yend=-Inf, size = 1)+
+  # annotate("segment", x=-Inf, xend=-Inf, y=-Inf, yend=Inf, size = 1)+
   theme_bw()+
   theme(panel.grid.major = element_blank(),
         panel.grid.minor = element_blank(),
@@ -72,15 +74,68 @@ Fig_a_3D <- ggplot(data = ThreeDGrowthvsYearandDom[Main == 0], aes(x = Year, y =
         axis.line.y = element_line(size = 1, colour = "black"),
         axis.text = element_text(size = 12),
         axis.title = element_text(size = 15),
-        strip.background = element_rect(colour = "white"),
-        strip.text = element_text(size = 15),
-        legend.position = c(0.2, 0.75),
+        strip.background = element_blank(),
+        strip.text = element_blank(),
+        legend.position = c(0.4, 0.95),
         legend.text = element_text(size = 13),
         legend.title = element_text(size = 15),
         legend.direction = "horizontal")
-figure_domidensity <- ggplot(data = analysesData, aes(x = Dominance_indiBiomass))+
-  geom_density(aes(col = Dominance_indiBiomass),fill = "red")+
-  facet_wrap(~Species)
+
+for(indispecies in c("JP", "TA", "BS")){
+  a <- density(analysesData[Species == indispecies, ]$Dominance_indiBiomass,
+               adjust = 1.5, from = 0, to = 100)
+  densitydata <- data.table(Species = indispecies, Dominance = a$x, Density = a$y)
+  if(indispecies == "JP"){
+    alldensitydata <- densitydata
+  } else{
+    alldensitydata <- rbind(alldensitydata, densitydata)
+  }
+}
+rm(a, indispecies, densitydata)
+alldensitydata[, Species := factor(Species, levels=c("JP", "TA", "BS"),
+                                   labels = c("Jack pine", "Trembling aspen", "Black spruce"))]
+meanDomData <- analysesData[,.(minDom = mean(Dominance_indiBiomass)), by = Species][
+  ,':='(Species = factor(Species, levels=c("JP", "TA", "BS"),
+                    labels = c("Jack pine", "Trembling aspen", "Black spruce")))]
+Fig2_right <- ggplot(data = alldensitydata[,':='(Density0 = -Density/2, Density10 = Density/2)],
+                     aes(x = Dominance, y = Density0))+
+  geom_segment(aes(xend = Dominance, yend = Density10, col = Dominance))+
+  geom_segment(data = analysesData[])
+facet_wrap(~Species, nrow = 3)+
+  coord_flip()+
+  scale_colour_continuous(low = "#FF0000", high = "#00FF00", breaks = seq(0, 100, by = 20))+
+  scale_y_continuous(name = "Density", limits = c(-0.04, 0.04),
+                     breaks = seq(-0.04, 0.04, by = 0.04))+
+  theme_bw()+
+  # annotate("segment", x=-Inf, xend=Inf, y=-Inf, yend=-Inf, size = 1)+
+  annotate("segment", x=-Inf, xend=-Inf, y=-Inf, yend=Inf, size = 1)+
+  theme(panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        axis.line.x = element_line(size = 1, colour = "black"),
+        axis.text.x = element_text(size = 12),
+        axis.text.y = element_blank(),
+        axis.title.x = element_text(size = 15),
+        axis.title.y = element_blank(),
+        axis.ticks.y = element_blank(),
+        strip.background = element_blank(),
+        strip.text = element_blank(),
+        legend.position = "none")
+
+Fig2_left_Grob <- ggplotGrob(Fig2_left)
+Fig2_right_Grob <- ggplotGrob(Fig2_right)
+
+Fig2_right_Grob$heights <- Fig2_left_Grob$heights
+
+dev(4)
+clearPlot()
+plotlayout <- rbind(c(1, 1, 1, 2))
+c <- grid.arrange(Fig2_left_Grob, Fig2_right_Grob,
+                  layout_matrix = plotlayout)
+
+ggsave(file = file.path(workPath, "CompetitionEffectsWithYearByDominance.png"), c,
+       width = 10, height = 15)
+setwd(orgPath)
 
 
 
