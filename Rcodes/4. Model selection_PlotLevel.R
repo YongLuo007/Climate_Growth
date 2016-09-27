@@ -46,6 +46,7 @@ for(indispecies in studyspecies){
                                         DV = "logY", 
                                         maxInteraction = 3,
                                         IDV = c("logDBHctd", "Yearctd", "logHctd", "Dominancectd"),
+                                        ICTerm = "AIC",
                                         random = ~1+Yearctd|PlotID, 
                                         control = lmeControl(opt="optim", maxIter=10000, msMaxIter = 10000))
   
