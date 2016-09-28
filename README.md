@@ -35,3 +35,7 @@ For each species among Jack pine, Trembling aspen and Black spruce, mixed models
 For each species, a best model was determined based on smallest AIC and was considered as the final model that was reported in the results.
 
 ### Examine climate changes and their associations with tree growth
+
+
+## Tables and figures presentations
+
