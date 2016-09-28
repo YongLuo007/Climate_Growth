@@ -23,17 +23,16 @@ testSpecieses <- c("JP", "BS", "TA")
 # testSpecieses <- c("PL", "AW", "SW", "SB", "PJ")
 i <- 1
 source(file.path(workPath, "Rcodes", "Rfunctions", "mixedModelSelection.R"))
-for(indispecies in testSpecieses){
+for(indispecies in testSpecieses[1]){
   speciesData <- analysesData[Species == indispecies,]
   speciesData[,':='(logY = log(BiomassGR), 
                     logDBHctd = log(IniDBH)-mean(log(IniDBH)), 
                     Yearctd = Year-mean(Year),
                     logHctd = log(Hegyi)-mean(log(Hegyi)),
-                    Dominancectd = log(Dominance_indiBiomass+1) - 
-                      mean(log(Dominance_indiBiomass+1)))]
+                    RBIctd = RBI - mean(RBI))]
   
   modelselection <- mixedModelSelection(DV = "logY", 
-                                        IDV = c("logDBHctd", "Yearctd", "logHctd", "Dominancectd"),
+                                        IDV = c("logDBHctd", "Yearctd", "logHctd", "RBIctd"),
                                         maxInteraction = 3,
                                         ICTerm = "AIC",
                                         data = speciesData, 
@@ -44,4 +43,4 @@ for(indispecies in testSpecieses){
 }
 
 save.image(file.path(workPath, "Results",
-                     paste("_BiomassGR_Year_modelselection.RData", sep = "")))
+                     paste(indispecies, "_BiomassGR_Year_modelselection.RData", sep = "")))
