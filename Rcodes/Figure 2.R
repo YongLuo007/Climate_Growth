@@ -2,29 +2,30 @@ rm(list = ls())
 # produce figure 2
 library(data.table); library(ggplot2); library(SpaDES)
 library(nlme); library(dplyr);library(MuMIn);library(gridExtra)
-
-
 workPath <- "~/GitHub/Climate_Growth"
 load(file.path(workPath, "data", "theBestModels.RData"))
 analysesData <- read.csv(file.path(workPath, "data", "MBdatafinal.csv"), header = TRUE,
                          stringsAsFactors = FALSE) %>% data.table
 analysesData <- analysesData[Species %in% c("JP", "TA", "BS"),]
 
-ThreeDGrowthvsYearandDom <- data.table(Species = character(), Dominance = numeric(),
+ThreeDGrowthvsYearandDom <- data.table(Species = character(), RBI = numeric(),
                                        Year = numeric(), PredictedBGR = numeric(),
                                        PredictedBGR_Upper = numeric(), PredictedBGR_Lower = numeric(),
                                        Main = numeric())
-OtherVariable <- data.table(Species = character(), DBH = numeric(), H = numeric())
 for(indispecies in c("JP", "BS", "TA")){
   themodel <- allbestmodels[[paste(indispecies)]]
+  newdata2 <- analysesData[Species == indispecies, ]
+  newdata2[,':='(Yearctd = 0, RBIctd = RBI-mean(RBI), 
+                 logDBHctd = log(IniDBH)-mean(log(IniDBH)),
+                 logHctd = log(Hegyi)-mean(log(Hegyi)))]
+  
   newdata <- data.table(expand.grid(Year = seq(min(analysesData[Species == indispecies,]$Year), 
                                                max(analysesData[Species == indispecies,]$Year),
                                                length = 100),
-                                    Dominance = c(seq(0, 100, by = 5),
-                                                  mean(analysesData[Species == indispecies,]$Dominance_indiBiomass))))
+                                    RBI = c(seq(0, 100, by = 10),
+                                                  mean(analysesData[Species == indispecies,]$RBI))))
   newdata[,':='(Yearctd = Year-mean(analysesData[Species == indispecies,]$Year),
-                Dominancectd = log(Dominance+1) - 
-                  mean(log(analysesData[Species == indispecies,]$Dominance_indiBiomass+1)),
+                RBIctd = RBI - mean(analysesData[Species == indispecies,]$RBI),
                 logDBHctd = log(10)-
                   mean(log(analysesData[Species == indispecies,]$IniDBH)),
                 logHctd = log(115)-
@@ -32,18 +33,48 @@ for(indispecies in c("JP", "BS", "TA")){
                 Species = indispecies)]
   reducedFomu <- as.formula(paste(as.character(formula(summary(themodel)$term))[c(2, 1, 3)], collapse = " "))
   fittedvalues <- predict(themodel, newdata = newdata, level = 0, se.fit = TRUE)
-  
+  # data.frame(summary(themodel)$tTable)$Value[1]
+  newdata2[, predictedBGR := predict(themodel, newdata = newdata2, 
+                                       level = 0)]
+  plotrandom <- ranef(themodel)[[1]]
+  names(plotrandom)[1] <- "PlotIntercept"
+  plotrandom$PlotID <- row.names(plotrandom)
+  plotrandom <- data.table(plotrandom)[,.(PlotID, PlotIntercept)]
+  treerandom <- ranef(themodel)[[2]]
+  names(treerandom)[1] <- "TreeIntercept"
+  treerandom$uniTreeID <- row.names(treerandom)
+  treerandom <- data.table(treerandom)[,.(uniTreeID, TreeIntercept)]
+  treerandom[, uniTreeID:=unlist(lapply(strsplit(uniTreeID, "/", fixed = TRUE), function(x){x[2]}))]
+  newdata2 <- setkey(newdata2, PlotID)[setkey(plotrandom, PlotID),
+                                       nomatch = 0]
+  newdata2 <- setkey(newdata2, uniTreeID)[setkey(treerandom, uniTreeID),
+                                          nomatch = 0]
+  newdata2[,predictedBGR:=exp(predictedBGR+PlotIntercept+TreeIntercept-
+                                data.frame(summary(themodel)$tTable)$Value[1])]
+  set(newdata2, ,c("PlotIntercept", "TreeIntercept"), NULL)
+  newdata2[, BGRresiduals := BiomassGR-predictedBGR]
+  newdata2 <- newdata2[, .(totalResiduals = sum(BGRresiduals), Species = indispecies), by = c("PlotID", "Year")]
   newdata$PredictedBGR <- exp(fittedvalues$fit)
   newdata$PredictedBGR_Upper <- exp(fittedvalues$fit+1.98*fittedvalues$se.fit)
   newdata$PredictedBGR_Lower <- exp(fittedvalues$fit-1.98*fittedvalues$se.fit)
   newdata[,Main:=0]
-  newdata[Dominance == mean(analysesData[Species == indispecies,]$Dominance_indiBiomass), Main := 1]
+  newdata[RBI == mean(analysesData[Species == indispecies,]$RBI), Main := 1]
   ThreeDGrowthvsYearandDom <- rbind(ThreeDGrowthvsYearandDom,
-                                    newdata[,.(Species, Year, Dominance, PredictedBGR, 
+                                    newdata[,.(Species, Year, RBI, PredictedBGR, 
                                                PredictedBGR_Upper, PredictedBGR_Lower, Main)])
   rm(themodel, newdata, fittedvalues, reducedFomu)
+  if(indispecies == "JP"){
+    PlotTrendData <- newdata2
+  } else {
+    PlotTrendData <- rbind(PlotTrendData, newdata2)
+  }
 }
-
+PlotTrendData[,Species:=factor(Species, levels = c("JP", "TA", "BS"),
+                               labels = c("Jack pine", "Trembling aspen", "Black spruce"))]
+a <- ggplot(data=PlotTrendData, aes(x = Year, y = totalResiduals))+
+  geom_line(aes(group = PlotID), col = "gray")+
+  geom_smooth(fill = "red", alpha = 0.1)+
+  facet_grid(Species~., scales = "free_y")
 
 ThreeDGrowthvsYearandDom$Species <- factor(ThreeDGrowthvsYearandDom$Species,
                                            levels = c("JP", "TA", "BS"),
@@ -53,10 +84,10 @@ OtherVariable$Species <- factor(OtherVariable$Species,
                                 labels = c("Jack pine", "Trembling aspen", "Black spruce"))
 OtherVariable[, ':='(y1 = 5, y2 = 4, Year = 1993, DBH1 = paste(DBH, "cm"))]
 MainTrend <- ThreeDGrowthvsYearandDom[Main == 1,][,linetype := 1]
-MainTrend[Species %in% c("Jack pine", "Black spruce"), linetype := 2]
+MainTrend[Species %in% c("Black spruce"), linetype := 2]
 MainTrend[,linetype:=factor(linetype, levels=c(1, 2))]
 Fig2_left <- ggplot(data = ThreeDGrowthvsYearandDom[Main == 0], aes(x = Year, y = PredictedBGR))+
-  geom_line(aes(group = Dominance, col = Dominance))+
+  geom_line(aes(group = RBI, col = RBI))+
   scale_colour_continuous(name = "RBI", low = "#FF0000", high = "#00FF00", breaks = seq(0, 100, by = 20))+
   geom_text(data = data.frame(Year = rep(1985, 3), y = c(2, 2, 3), label = c("a", "c", "e"),
                               Species = c("Jack pine", "Trembling aspen", "Black spruce")),
