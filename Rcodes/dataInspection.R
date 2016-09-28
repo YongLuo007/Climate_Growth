@@ -8,15 +8,16 @@ studyspecies <- c("JP", "TA", "BS")
 # normality check
 analysesData <- analysesData[Species %in% studyspecies, ]
 # visual check
-dev(4)
-clearPlot()
-print(plot(hist(log(analysesData$BiomassGR))))
+nomalityCheck <- ggplot(analysesData, aes(x = BiomassGR))+
+  geom_histogram(aes(log(BiomassGR)), bins = 50)+
+  facet_wrap(~Species)
+
 
 # check the multilinearity among independent variables using Zuur 2010 method
 source(file.path(workPath, "Rcodes", "Rfunctions", "HighstatLib_Zuur.R"))
 for(indispecies in studyspecies){
   independentV1 <- data.frame(analysesData[Species == indispecies,
-                                           .(Dominance_indiBiomass, Hegyi, IniDBH,
+                                           .(RBI, Hegyi, IniDBH,
                                              Year)])
 
   viftest <- data.frame(corvif(independentV1))
@@ -28,19 +29,19 @@ for(indispecies in studyspecies){
   }
 }
 print(viftestoutput)
-# GVIF Species
-# Dominance_indiBiomass  1.864424      JP
-# Hegyi                  1.620580      JP
-# IniDBH                 2.230315      JP
-# Year                   1.053920      JP
-# Dominance_indiBiomass1 1.645985      TA
-# Hegyi1                 2.025881      TA
-# IniDBH1                2.556683      TA
-# Year1                  1.050263      TA
-# Dominance_indiBiomass2 2.861939      BS
-# Hegyi2                 1.502340      BS
-# IniDBH2                3.552585      BS
-# Year2                  1.021438      BS
+GVIF Species
+# RBI     1.386561      JP
+# Hegyi   1.737999      JP
+# IniDBH  1.653822      JP
+# Year    1.053010      JP
+# RBI1    1.350198      TA
+# Hegyi1  2.049455      TA
+# IniDBH1 2.216450      TA
+# Year1   1.042794      TA
+# RBI2    1.858667      BS
+# Hegyi2  1.614244      BS
+# IniDBH2 1.893845      BS
+# Year2   1.028955      BS
 
 # the vif is not an issue for analyses, as indicated by the GVIF value smaller than 4
 
@@ -48,12 +49,12 @@ print(viftestoutput)
 ##
 ### check the linearity between dependent variable and independent variable visually
 ###
-analysesDataLongForm <- reshape(data = analysesData[,.(Species, BiomassGR, Year, Hegyi, Dominance_indiBiomass,
+analysesDataLongForm <- reshape(data = analysesData[,.(Species, BiomassGR, Year, Hegyi, RBI,
                                                        IniDBH)], 
-                                varying = c("Year", "Hegyi", "Dominance_indiBiomass", "IniDBH"),
+                                varying = c("Year", "Hegyi", "RBI", "IniDBH"),
                                 v.names = "Value",
                                 timevar = "IndependentV",
-                                times = c("Year", "Hegyi", "Dominance_indiBiomass", "IniDBH"),
+                                times = c("Year", "Hegyi", "RBI", "IniDBH"),
                                 direction = "long")
 
 
@@ -67,7 +68,7 @@ figure_linearity_3 <- ggplot(data = analysesData, aes(y = log(BiomassGR)))+
   geom_point(aes(x = log(IniDBH), group = Species))+
   facet_wrap(~Species)
 figure_linearity_4 <- ggplot(data = analysesData, aes(y = log(BiomassGR)))+
-  geom_point(aes(x = log(Dominance_indiBiomass), group = Species))+
+  geom_point(aes(x = RBI, group = Species))+
   facet_wrap(~Species)
 
 
