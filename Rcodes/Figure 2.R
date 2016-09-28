@@ -52,16 +52,19 @@ OtherVariable$Species <- factor(OtherVariable$Species,
                                 levels = c("JP", "TA", "BS"),
                                 labels = c("Jack pine", "Trembling aspen", "Black spruce"))
 OtherVariable[, ':='(y1 = 5, y2 = 4, Year = 1993, DBH1 = paste(DBH, "cm"))]
-
+MainTrend <- ThreeDGrowthvsYearandDom[Main == 1,][,linetype := 1]
+MainTrend[Species %in% c("Jack pine", "Black spruce"), linetype := 2]
+MainTrend[,linetype:=factor(linetype, levels=c(1, 2))]
 Fig2_left <- ggplot(data = ThreeDGrowthvsYearandDom[Main == 0], aes(x = Year, y = PredictedBGR))+
   geom_line(aes(group = Dominance, col = Dominance))+
   scale_colour_continuous(name = "RBI", low = "#FF0000", high = "#00FF00", breaks = seq(0, 100, by = 20))+
-  geom_text(data = data.frame(Year = rep(1985, 3), y = c(2, 2, 3), label = c("a", "b", "c"),
+  geom_text(data = data.frame(Year = rep(1985, 3), y = c(2, 2, 3), label = c("a", "c", "e"),
                               Species = c("Jack pine", "Trembling aspen", "Black spruce")),
             aes(x = Year, y = y, label = label), size = 8)+
-  geom_line(data = ThreeDGrowthvsYearandDom[Main == 1], aes(x = Year, y = PredictedBGR),
+  geom_line(data = MainTrend, aes(x = Year, y = PredictedBGR, linetype = linetype),
             colour = "black", size = 1)+
-  facet_wrap(~Species, nrow = 3, scales = "free_y")+
+  facet_grid(Species~., scales = "free_y")+
+  scale_linetype(guide = "none")+
   scale_x_continuous(name = "Year", limits = c(1985, 2010), breaks = seq(1985, 2010, by = 5))+
   scale_y_continuous(name = expression(atop("Aboveground biomass growth rate", paste("(Kg ", year^{-1}, ")"))))+
   annotate("segment", x=-Inf, xend=Inf, y=-Inf, yend=-Inf, size = 1)+
@@ -102,7 +105,10 @@ Fig2_right <- ggplot(data = alldensitydata[,':='(Density0 = -Density/2, Density1
   geom_segment(aes(xend = Dominance, yend = Density10, col = Dominance))+
   geom_segment(data = meanDomData, aes(x = minDom, xend = minDom, y = Density0, yend = Density10),
                colour = "gray", size = 1)+
-  facet_wrap(~Species, nrow = 3)+
+  facet_grid(Species~., scales = "free_y")+
+  geom_text(data = data.frame(Year = rep(100, 3), y = c(-0.035, -0.035, -0.035), label = c("b", "d", "f"),
+                              Species = c("Jack pine", "Trembling aspen", "Black spruce")),
+            aes(x = Year, y = y, label = label), size = 8)+
   coord_flip()+
   scale_colour_continuous(low = "#FF0000", high = "#00FF00", breaks = seq(0, 100, by = 20))+
   scale_y_continuous(name = "Density", limits = c(-0.04, 0.04),
@@ -119,8 +125,8 @@ Fig2_right <- ggplot(data = alldensitydata[,':='(Density0 = -Density/2, Density1
         axis.text = element_text(size = 12),
         axis.title = element_text(size = 15),
         # axis.ticks.y = element_blank(),
-        strip.background = element_blank(),
-        strip.text = element_blank(),
+        strip.background = element_rect(colour = "white", fill = "gray"),
+        strip.text = element_text(size = 12),
         legend.position = "none")
 
 Fig2_left_Grob <- ggplotGrob(Fig2_left)
