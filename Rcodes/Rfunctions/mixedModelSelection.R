@@ -253,7 +253,7 @@ setMethod("mixedModelSelection",
                                 IDV,
                                 ICTerm,
                                 ...){
-            return(DV, IDV, maxInteraction = 1, ICTerm, ...)
+            return(mixedModelSelection(DV, IDV, maxInteraction = 1, ICTerm, ...))
           })
 
 #' @export
@@ -267,7 +267,7 @@ setMethod("mixedModelSelection",
                                 IDV,
                                 maxInteraction,
                                 ...){
-            return(DV, IDV, maxInteraction, ICTerm = "AIC", ...)
+            return(mixedModelSelection(DV, IDV, maxInteraction, ICTerm = "AIC", ...))
           })
 
 #' @export
@@ -280,5 +280,5 @@ setMethod("mixedModelSelection",
           definition = function(DV,
                                 IDV,
                                 ...){
-            return(DV, IDV, maxInteraction = 1, ICTerm = "AIC", ...)
+            return(mixedModelSelection(DV, IDV, maxInteraction = 1, ICTerm = "AIC", ...))
           })
