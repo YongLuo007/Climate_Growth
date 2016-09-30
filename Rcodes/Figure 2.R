@@ -11,7 +11,7 @@ ThreeDGrowthvsYearandDom <- data.table(Species = character(), RBI = numeric(),
                                        Year = numeric(), PredictedBGR = numeric(),
                                        PredictedBGR_Upper = numeric(), PredictedBGR_Lower = numeric(),
                                        Main = numeric())
-for(indispecies in c("All", "JP", "BS", "TA")){
+for(indispecies in c("All", "JP", "BS", "TA", "Other")){
   themodel <- allbestmodels[[paste(indispecies)]]
   if(indispecies == "All"){
     newdata <- data.table(expand.grid(Year = seq(min(analysesData$Year), 
@@ -27,6 +27,21 @@ for(indispecies in c("All", "JP", "BS", "TA")){
                   mean(log(analysesData$Hegyi)),
                 Species = indispecies)]
     newdata2 <- data.table::copy(analysesData)
+  } else if (indispecies == "Other"){
+    newdata <- data.table(expand.grid(Year = seq(min(analysesData[!(Species %in% c("JP", "TA", "BS")),]$Year), 
+                                                 max(analysesData[!(Species %in% c("JP", "TA", "BS")),]$Year),
+                                                 length = 100),
+                                      RBI = c(seq(0, 100, by = 10),
+                                              mean(analysesData[!(Species %in% c("JP", "TA", "BS")),]$RBI))))
+    newdata[,':='(Yearctd = Year-mean(analysesData[!(Species %in% c("JP", "TA", "BS")),]$Year),
+                  RBIctd = RBI - mean(analysesData[!(Species %in% c("JP", "TA", "BS")),]$RBI),
+                  logDBHctd = log(mean(analysesData[!(Species %in% c("JP", "TA", "BS")),]$IniDBH))-
+                    mean(log(analysesData[!(Species %in% c("JP", "TA", "BS")),]$IniDBH)),
+                  logHctd = log(mean(analysesData[!(Species %in% c("JP", "TA", "BS")),]$Hegyi))-
+                    mean(log(analysesData[!(Species %in% c("JP", "TA", "BS")),]$Hegyi)),
+                  Species = indispecies)]
+    newdata2 <- analysesData[!(Species %in% c("JP", "TA", "BS")), ]
+    
   } else {
     newdata <- data.table(expand.grid(Year = seq(min(analysesData[Species == indispecies,]$Year), 
                                                  max(analysesData[Species == indispecies,]$Year),
@@ -71,13 +86,16 @@ for(indispecies in c("All", "JP", "BS", "TA")){
   } else {
     newdata2[,predictedBGR:=exp(predictedBGR)]
   }
-  newdata2 <- newdata2[, .(totalPredictedBGR = sum(predictedBGR), Species = indispecies), by = c("PlotID", "Year")]
+  newdata2 <- newdata2[, .(totalPredictedBGR = sum(predictedBGR), meanPredBGR = mean(predictedBGR),
+                           Species = indispecies), by = c("PlotID", "Year")]
   newdata$PredictedBGR <- exp(fittedvalues$fit)
   newdata$PredictedBGR_Upper <- exp(fittedvalues$fit+1.98*fittedvalues$se.fit)
   newdata$PredictedBGR_Lower <- exp(fittedvalues$fit-1.98*fittedvalues$se.fit)
   newdata[,Main:=0]
   if(indispecies == "All"){
     newdata[RBI == mean(analysesData$RBI), Main := 1]
+  } else if(indispecies == "Other"){
+    newdata[RBI == mean(analysesData[!(Species %in% c("JP", "TA", "BS")),]$RBI), Main := 1]
   } else {
     newdata[RBI == mean(analysesData[Species == indispecies,]$RBI), Main := 1]
   }
@@ -92,11 +110,18 @@ for(indispecies in c("All", "JP", "BS", "TA")){
     PlotTrendData <- rbind(PlotTrendData, newdata2)
   }
 }
-PlotTrendData[,Species:=factor(Species, levels = c("All", "JP", "TA", "BS"),
-                               labels = c("All species", "Jack pine", "Trembling aspen", "Black spruce"))]
+PlotTrendData[,Species:=factor(Species, levels = c("All", "JP", "TA", "BS", "Other"),
+                               labels = c("All species", "Jack pine",
+                                          "Trembling aspen", "Black spruce",
+                                          "Other species"))]
 a <- ggplot(data=PlotTrendData, aes(x = Year, y = totalPredictedBGR))+
   geom_line(aes(group = PlotID), col = "gray")+
   facet_grid(Species~., scales = "free_y")
+
+b <- ggplot(data=PlotTrendData, aes(x = Year, y = meanPredBGR))+
+  geom_line(aes(group = PlotID), col = "gray")+
+  facet_grid(Species~.)
+
 
 ThreeDGrowthvsYearandDom$Species <- factor(ThreeDGrowthvsYearandDom$Species,
                                            levels = c("All", "JP", "TA", "BS"),
