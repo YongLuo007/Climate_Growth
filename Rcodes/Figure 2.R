@@ -3,7 +3,7 @@ rm(list = ls())
 library(data.table); library(ggplot2); library(SpaDES)
 library(nlme); library(dplyr);library(MuMIn);library(gridExtra)
 workPath <- "~/GitHub/Climate_Growth"
-load(file.path(workPath, "data", "theBestModels.RData"))
+load(file.path(workPath, "Results", "bestYearModel.RData"))
 analysesData <- read.csv(file.path(workPath, "data", "MBdatafinal.csv"), header = TRUE,
                          stringsAsFactors = FALSE) %>% data.table
 

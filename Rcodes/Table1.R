@@ -9,12 +9,12 @@ analysesData <- read.csv(file.path(workPath, "data", "MBdatafinal.csv"), header 
   data.table
 
 speciesdata <- data.table::copy(analysesData)
-speciesdata <- speciesdata[,.(PlotID, uniTreeID, BGR = BiomassGR, IniDBH, Year, Hegyi, 
-                                                       RBI = Dominance_indiBiomass,
-                                                       ATA, GSTA, NONGSTA,
-                                                       APA, GSPA, NONGSPA,
-                                                       ACMIA, GSCMIA, NONGSCMIA,
-                                                       ACO2A, GSCO2A, NONGSCO2A)]
+speciesdata <- speciesdata[,.(PlotID, uniTreeID, ABGR = BiomassGR, IniDBH, Year, Hegyi, 
+                              RBI = RBI,
+                              ATA, GSTA, NONGSTA,
+                              APA, GSPA, NONGSPA,
+                              ACMIA, GSCMIA, NONGSCMIA,
+                              ACO2A, GSCO2A, NONGSCO2A)]
 plotsummary <- data.table(Variable = c(-2, -1, 0), 
                           summary = c(length(unique(speciesdata$PlotID)),
                                       length(unique(speciesdata$uniTreeID)),
@@ -29,19 +29,31 @@ speciesdata <- speciesdata[,.(mean = round(mean(Values), 2), sd = round(sd(Value
                               max = round(max(Values), 2)), by = Variable]
 speciesdata <- speciesdata[,.(Variable, 
                               summary = paste(mean, " ± ", sd, "(",
-                                                min, " to ", max, ")", sep = ""))]
+                                              min, " to ", max, ")", sep = ""))]
 Table1Output <- rbind(speciesdata, plotsummary)
 names(Table1Output)[2] <- "allData_summary"
 rm(speciesdata)
-studySpecies <- c("JP", "TA", "BS")
+studySpecies <- c("JP", "TA", "BS", "Other")
 
 for(indispecies in studySpecies){
-  speciesdata <- analysesData[Species == indispecies,.(PlotID, uniTreeID, BGR = BiomassGR, IniDBH, Year, Hegyi, 
-                                                       RBI = Dominance_indiBiomass,
-                                                       ATA, GSTA, NONGSTA,
-                                                       APA, GSPA, NONGSPA,
-                                                       ACMIA, GSCMIA, NONGSCMIA,
-                                                       ACO2A, GSCO2A, NONGSCO2A)]
+  if(indispecies == "Other"){
+    speciesdata <- analysesData[!(Species %in% c("JP", "TA", "BS")),.(PlotID, uniTreeID, ABGR = BiomassGR,
+                                                                      IniDBH, Year, Hegyi, 
+                                                                      RBI = RBI,
+                                                                      ATA, GSTA, NONGSTA,
+                                                                      APA, GSPA, NONGSPA,
+                                                                      ACMIA, GSCMIA, NONGSCMIA,
+                                                                      ACO2A, GSCO2A, NONGSCO2A)]
+  } else {
+    speciesdata <- analysesData[Species == indispecies,.(PlotID, uniTreeID, ABGR = BiomassGR,
+                                                         IniDBH, Year, Hegyi, 
+                                                         RBI = RBI,
+                                                         ATA, GSTA, NONGSTA,
+                                                         APA, GSPA, NONGSPA,
+                                                         ACMIA, GSCMIA, NONGSCMIA,
+                                                         ACO2A, GSCO2A, NONGSCO2A)]
+  }
+  
   plotsummary <- data.table(Variable = c(-2, -1, 0), 
                             summary = c(length(unique(speciesdata$PlotID)),
                                         length(unique(speciesdata$uniTreeID)),
@@ -56,11 +68,11 @@ for(indispecies in studySpecies){
                                 max = round(max(Values), 2)), by = Variable]
   speciesdata <- speciesdata[,.(Variable, 
                                 summary = paste(mean, " ± ", sd, "(",
-                                                  min, " to ", max, ")", sep = ""))]
+                                                min, " to ", max, ")", sep = ""))]
   speciesdata <- rbind(speciesdata, plotsummary)
-
+  
   names(speciesdata)[2] <- paste(indispecies, "_", names(speciesdata)[2], sep = "")
-
+  
   Table1Output <- setkey(Table1Output, Variable)[setkey(speciesdata, Variable), nomatch = 0]
   
 }
