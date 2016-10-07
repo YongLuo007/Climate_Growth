@@ -33,7 +33,7 @@ for(indispecies in studySpecies){
   } else if(indispecies == "JP"){
     themodel <- lme(logY~logDBHctd+Yearctd+logHctd+RBIctd+
                       logDBHctd:logHctd+logDBHctd:RBIctd+
-                      Yearctd:RBIctd+logHctd:RBIctd+
+                      Yearctd:RBIctd+logHctd:RBIctd+Yearctd:logHctd+
                       logDBHctd:Yearctd:logHctd+
                       logDBHctd:Yearctd:RBIctd+
                       logDBHctd:logHctd:RBIctd,
@@ -43,7 +43,7 @@ for(indispecies in studySpecies){
   } else if(indispecies == "TA"){
     themodel <- lme(logY~logDBHctd+Yearctd+logHctd+RBIctd+
                       logDBHctd:logHctd+logDBHctd:RBIctd+
-                      Yearctd:RBIctd+logHctd:RBIctd+
+                      Yearctd:RBIctd+logHctd:RBIctd+Yearctd:logHctd+
                       logDBHctd:logHctd:RBIctd,
                     random = ~1+Yearctd|PlotID/uniTreeID, 
                     control = lmeControl(opt="optim", maxIter=10000, msMaxIter = 10000),
