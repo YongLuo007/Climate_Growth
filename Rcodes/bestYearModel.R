@@ -4,6 +4,8 @@ workPath <- "~/GitHub/Climate_Growth"
 analysesData <- read.csv(file.path(workPath, "data", "MBdatafinal.csv"), header = TRUE,
                          stringsAsFactors = FALSE) %>% data.table
 studySpecies <- c("All", "JP", "BS", "TA", "Other")
+analysesData[,':='(IntraH = Hegyi*IntraHegyiRatio, InterH = Hegyi*(1-IntraHegyiRatio))]
+
 allbestmodels <- list()
 
 for(indispecies in studySpecies){
@@ -17,49 +19,53 @@ for(indispecies in studySpecies){
   speciesData[,':='(logY = log(BiomassGR), 
                     logDBHctd = log(IniDBH)-mean(log(IniDBH)), 
                     Yearctd = Year-mean(Year),
-                    logHctd = log(Hegyi)-mean(log(Hegyi)),
+                    logIntraHctd = log(IntraH+1)-mean(log(IntraH+1)),
+                    logInterHctd = log(InterH+1)-mean(log(InterH+1)),
                     RBIctd = RBI - mean(RBI))]
   if(indispecies == "All"){
-    themodel <- lme(logY~logDBHctd+Yearctd+logHctd+RBIctd+
-                      logDBHctd:Yearctd+logDBHctd:logHctd+
-                      logDBHctd:RBIctd+Yearctd:logHctd+
-                      Yearctd:RBIctd+logHctd:RBIctd+
-                      logDBHctd:Yearctd:logHctd+
-                      logDBHctd:Yearctd:RBIctd+
-                      logDBHctd:logHctd:RBIctd,
+    themodel <- lme(logY~logDBHctd+Yearctd+logIntraHctd+logInterHctd+RBIctd+
+                      logDBHctd:logInterHctd+logDBHctd:RBIctd+
+                      Yearctd:RBIctd+
+                      logIntraHctd:RBIctd+logIntraHctd:RBIctd+
+                      Yearctd:RBIctd:logIntraHctd+
+                      Yearctd:RBIctd:logInterHctd+
+                      logDBHctd:logIntraHctd:RBIctd,
                     random = ~1+Yearctd|PlotID/uniTreeID, 
                     control = lmeControl(opt="optim", maxIter=20000, msMaxIter = 20000),
                     data = speciesData)
   } else if(indispecies == "JP"){
-    themodel <- lme(logY~logDBHctd+Yearctd+logHctd+RBIctd+
-                      logDBHctd:logHctd+logDBHctd:RBIctd+
-                      Yearctd:RBIctd+logHctd:RBIctd+Yearctd:logHctd+
-                      logDBHctd:Yearctd:logHctd+
-                      logDBHctd:Yearctd:RBIctd+
-                      logDBHctd:logHctd:RBIctd,
+    themodel <- lme(logY~logDBHctd+Yearctd+logIntraHctd+logInterHctd+RBIctd+
+                      logDBHctd:logIntraHctd+logDBHctd:RBIctd+
+                      Yearctd:RBIctd+logIntraHctd:RBIctd+
+                      Yearctd:RBIctd:logIntraHctd+
+                      logDBHctd:logIntraHctd:RBIctd,
                     random = ~1+Yearctd|PlotID/uniTreeID, 
                     control = lmeControl(opt="optim", maxIter=10000, msMaxIter = 10000),
                     data = speciesData)
   } else if(indispecies == "TA"){
-    themodel <- lme(logY~logDBHctd+Yearctd+logHctd+RBIctd+
-                      logDBHctd:logHctd+logDBHctd:RBIctd+
-                      Yearctd:RBIctd+logHctd:RBIctd+Yearctd:logHctd+
-                      logDBHctd:logHctd:RBIctd,
+    themodel <- lme(logY~logDBHctd+Yearctd+logIntraHctd+logInterHctd+RBIctd+
+                      logDBHctd:logInterHctd+logDBHctd:RBIctd+
+                      Yearctd:RBIctd+logIntraHctd:RBIctd+
+                      Yearctd:RBIctd:logIntraHctd+
+                      logDBHctd:logIntraHctd:RBIctd+
+                      logDBHctd:logInterHctd:RBIctd,
                     random = ~1+Yearctd|PlotID/uniTreeID, 
                     control = lmeControl(opt="optim", maxIter=10000, msMaxIter = 10000),
                     data = speciesData)
   } else if(indispecies == "BS"){
-    themodel <- lme(logY~logDBHctd+logHctd+RBIctd+logDBHctd:Yearctd+
-                      logDBHctd:RBIctd+logHctd:Yearctd+RBIctd:Yearctd+
-                      logHctd:RBIctd+logDBHctd:logHctd:Yearctd+
-                      logDBHctd:RBIctd:Yearctd+logDBHctd:logHctd:RBIctd+
-                      logHctd:RBIctd:Yearctd,
+    themodel <- lme(logY~logDBHctd+logIntraHctd+logInterHctd+RBIctd+
+                      logDBHctd:Yearctd+logDBHctd:RBIctd+
+                      Yearctd:logIntraHctd+Yearctd:RBIctd+
+                      logIntraHctd:RBIctd+logInterHctd:RBIctd+
+                      Yearctd:RBIctd:logIntraHctd+
+                      logDBHctd:logIntraHctd:RBIctd+
+                      logDBHctd:logInterHctd:RBIctd,
                     random = ~1+Yearctd|PlotID/uniTreeID, 
                     control = lmeControl(opt="optim", maxIter=10000, msMaxIter = 10000),
                     data = speciesData)
   } else {
-    themodel <- lme(logY~logDBHctd+Yearctd+logHctd+RBIctd+logDBHctd:RBIctd+
-                      logHctd:RBIctd+logDBHctd:logHctd:RBIctd,
+    themodel <- lme(logY~logDBHctd+Yearctd+logIntraHctd+logInterHctd+RBIctd+
+                      logDBHctd:RBIctd+logInterHctd:RBIctd,
                     random = ~1+Yearctd|PlotID/uniTreeID, 
                     control = lmeControl(opt="optim", maxIter=10000, msMaxIter = 10000),
                     data = speciesData)
