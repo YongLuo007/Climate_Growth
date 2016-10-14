@@ -3,13 +3,6 @@ library(dplyr); library(SpaDES); library(nlme); library(data.table)
 workPath <- "~/GitHub/Climate_Growth"
 analysesData <- read.csv(file.path(workPath, "data", "MBdatafinal.csv"), header = TRUE,
                          stringsAsFactors = FALSE) %>% data.table
-theplotidlebal <- unique(analysesData$PlotID)
-thetreeidlebal <- unique(analysesData$uniTreeID)
-analysesData[,':='(PlotID = factor(PlotID, levels = theplotidlebal, labels = theplotidlebal),
-                   uniTreeID = factor(uniTreeID, levels = thetreeidlebal, 
-                                      labels = thetreeidlebal))]
-
-
 AllResults <- data.table(Model = character(),
                          Formula = character(),
                          AIC = numeric(),
@@ -17,30 +10,39 @@ AllResults <- data.table(Model = character(),
                          MarR2 = numeric(),
                          ConR2 = numeric(),
                          Species = character())
+analysesData[,':='(IntraH = Hegyi*IntraHegyiRatio, InterH = Hegyi*(1-IntraHegyiRatio))]
 
-
-testSpecieses <- c("JP", "BS", "TA")
-# testSpecieses <- c("PL", "AW", "SW", "SB", "PJ")
+studySpecies <- c("All", "JP", "TA", "BS", "Other")[1]
+majorSpecies <- c("JP", "TA", "BS")
 i <- 1
 source(file.path(workPath, "Rcodes", "Rfunctions", "mixedModelSelection.R"))
-for(indispecies in testSpecieses[1]){
-  speciesData <- analysesData[Species == indispecies,]
+for(indispecies in studySpecies){
+  if(indispecies == "All"){
+    speciesData <- data.table::copy(analysesData)
+  } else if(indispecies == "Other"){
+    speciesData <- analysesData[!(Species %in% majorSpecies),]
+  } else {
+    speciesData <- analysesData[Species == indispecies,]
+  }
   speciesData[,':='(logY = log(BiomassGR), 
                     logDBHctd = log(IniDBH)-mean(log(IniDBH)), 
                     Yearctd = Year-mean(Year),
-                    logHctd = log(Hegyi)-mean(log(Hegyi)),
+                    logIntraHctd = log(IntraH+1)-mean(log(IntraH+1)),
+                    logInterHctd = log(InterH+1)-mean(log(InterH+1)),
                     RBIctd = RBI - mean(RBI))]
   
   modelselection <- mixedModelSelection(DV = "logY", 
-                                        IDV = c("logDBHctd", "Yearctd", "logHctd", "RBIctd"),
+                                        IDV = c("logDBHctd", "Yearctd", "logIntraHctd",
+                                                "logInterHctd", "RBIctd"),
                                         maxInteraction = 3,
                                         ICTerm = "AIC",
                                         data = speciesData, 
                                         random = ~1+Yearctd|PlotID/uniTreeID, 
-                                        control = lmeControl(opt="optim", maxIter=10000, msMaxIter = 10000))
+                                        control = lmeControl(opt="optim", maxIter=20000,
+                                                             msMaxIter = 20000))
   
   AllResults <- rbind(AllResults, modelselection$modelSummary[, Species:=indispecies])
 }
 
-save.image(file.path(workPath, "Results",
+save.image(file.path(workPath, "data",
                      paste(indispecies, "_BiomassGR_Year_modelselection.RData", sep = "")))
