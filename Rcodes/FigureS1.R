@@ -9,7 +9,7 @@ analysesData <- read.csv(file.path(workPath, "data", "MBdatafinal.csv"), header 
   data.table
 
 studySpecies <- c("JP", "BS", "TA")
-allspeciesdata <- analysesData[Species %in% studySpecies, ]
+allspeciesdata <- data.table::copy(analysesData)
 FigureS1Data <- data.table(PlotID = character(), Year = numeric(), IniYear = numeric(),
                            FinYear = numeric())
 plots <- unique(allspeciesdata$PlotID)
@@ -59,8 +59,12 @@ FigureS1_a <- ggplot(data = subFigureS1, aes(x = Year, y = newPlotID))+
         legend.title = element_text(size = 10),
         legend.text = element_text(size = 9))
 
-
-NofTreeData <- allspeciesdata[,.(NofTree=length(unique(uniTreeID)),
+majorspecies <- c("JP", "TA", "BS")
+allspeciesdatanew <- data.table::copy(allspeciesdata)
+allspeciesdatanew[!(Species %in% majorspecies), Species:="Other"]
+allspeciesdatanew <- rbindlist(list(copy(allspeciesdatanew)[,Species:="All"],
+                                    allspeciesdatanew))
+NofTreeData <- allspeciesdatanew[,.(NofTree=length(unique(uniTreeID)),
                                  IniYear = min(IniYear),
                                  FinYear = max(FinYear)), by = c("PlotID", "Species")]
 figureS1_bData <- data.table(Species = character(), NofTree = numeric(), Year = numeric())
@@ -70,14 +74,15 @@ for(i in 1:nrow(NofTreeData)){
   figureS1_bData <- rbind(figureS1_bData, adddata)
 }
 figureS1_bData <- figureS1_bData[,.(NofTree = sum(NofTree)), by = c("Year", "Species")]  
+figureS1_bData[,Species:=factor(Species, levels = c("All", "JP", "TA", "BS", "Other"),
+                                labels = c("All species", "Jack pine", "Trembling aspen",
+                                           "Black spruce", "Other species"))]
 
 FigureS1_b <- ggplot(data = figureS1_bData, aes(x = Year, y = NofTree))+
   geom_line(aes(group = Species, col = Species), size = 1)+
-  scale_y_continuous(name = "Number of tree", limits = c(0, 8000), breaks = c(seq(0, 8000, by = 2000), 9000))+
+  scale_y_continuous(name = "Number of tree", limits = c(0, 20000), breaks = seq(0, 20000, by = 5000))+
   scale_x_continuous(name = "Year", limits = c(1985, 2012), breaks = seq(1985, 2011, by = 5))+
-  scale_color_manual(name = "Species", values = c("red", "green", "blue"),
-                         label = c("Black spruce", "Jack pine", "Trembling aspen"))+
-  annotate("text", x = 1985, y = 8000, label = "b", size = 10)+
+  annotate("text", x = 1985, y = 20000, label = "b", size = 10)+
   theme_bw()+
   theme(panel.grid.major = element_blank(),
         panel.grid.minor = element_blank(),
@@ -86,7 +91,7 @@ FigureS1_b <- ggplot(data = figureS1_bData, aes(x = Year, y = NofTree))+
         axis.line.y = element_line(size = 1, colour = "black"),
         axis.text = element_text(size = 12),
         axis.title = element_text(size = 15),
-        legend.position = c(0.6, 0.2),
+        legend.position = c(0.16, 0.75),
         legend.title = element_text(size = 10),
         legend.text = element_text(size = 9))
 
