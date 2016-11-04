@@ -50,13 +50,19 @@ allPSP[,':='(uniTreeID = paste(PlotID, "_", TreeNumber, sep = ""))]
 firsttime <- FALSE
 if(firsttime){
    #alive trees for competition calculation
+
    CIcompetitionData <- allPSP[Status == 1 | Status == 0,]
    CIcompetitionData[PlotID == "46-132", Distance:=Distance/100]
+   CIcompetitionData <- CIcompetitionData[,.(PlotNumber = PlotID, TreeNumber = TreeNumber,
+                                             Year, Distance, Angle, DBH, Species)]
    
    source(file.path(workPath, "Rcodes", "Rfunctions","HeghyiCICalculation.R"))
    CIdata <- HeghyiCICalculation(data = CIcompetitionData,
-                                 maxRadius = 12.1)
-   write.csv(CIdata[,.(uniTreeID, Year, Hegyi, IntraHegyiRatio)],
+                                 maxRadius = 12.62,
+                                 sizeIndex = "DBH")
+   
+   
+   write.csv(CIdata[,.(PlotNumber, uniTreeID Year, Hegyi, IntraHegyiRatio)],
              ,row.names = F)
 }
 rm(firsttime)
