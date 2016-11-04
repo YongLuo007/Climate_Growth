@@ -1,11 +1,15 @@
-#' the function to calculate hegyi competition index
+#' the function to calculate intraspecific and interspecific hegyi competition index using DBH or biomass
 #'
-#' @param data data.table which must have spatial comfiguration rows
+#' @param data data.table which must have PlotNumber TreeNumber and Year at which the trees were
+#'                        measured. DBH must be present if using DBH, Biomass must be present if
+#'                        using biomass to calculate competition index, Distance and Angle, and species
 #' 
-#' @maxRadius numeric, the competition index will been calculated within this radius
+#' @param maxRadius numeric, the competition index will been calculated within this radius
+#' 
+#' @param sizeIndex character, choose DBH or Biomass to calculate competition
 #' 
 #'
-#' @return a data table that has three columns, i.e., active, mapcode and ecoregion
+#' @return a data table that has five columns, plotNumber, treeNumber, Year, IntraH and InterH
 #' 
 #' @importFrom data.table data.table ':='
 #' @importFrom dplyr left_join '%>%' 
@@ -22,7 +26,9 @@
 #'
 setGeneric("HeghyiCICalculation",
            function(data,
-                    maxRadius) {
+                    maxRadius,
+                    sizeIndex,
+                    distanceWeight) {
              standardGeneric("HeghyiCICalculation")
            })
 
@@ -31,35 +37,71 @@ setGeneric("HeghyiCICalculation",
 setMethod(
   "HeghyiCICalculation",
   signature = c(data = "data.table",
-                maxRadius = "numeric"),
+                maxRadius = "numeric",
+                sizeIndex = "character",
+                distanceWeight = "numeric"),
   definition = function(data,
-                        maxRadius){
+                        maxRadius,
+                        sizeIndex,
+                        distanceWeight){
     # calcuate coordination of each tree
     data[, ':='(coordX = sin(Angle*pi/180)*Distance,
                 coordY = cos(Angle*pi/180)*Distance)]
-    set(data, , c("Hegyi", "IntraHegyiRatio"), 0)
-    for(i in 1:nrow(data)){
-      # surrounding trees
-      surroundingTrees <- data[PlotID == data$PlotID[i] & Year == data$Year[i] &
-                                 TreeNumber != data$TreeNumber[i],]
-      surroundingTrees[,XYDistance:=((coordX-data$coordX[i])^2+(coordY-data$coordY[i])^2)^0.5]
-      surroundingTrees[XYDistance<0.1, XYDistance:=0.1]
-      surroundingTrees <- surroundingTrees[XYDistance <= maxRadius,]
-      surroundingTrees_SameSpecies <- surroundingTrees[Species == data$Species[i],]
-      # tempHeigyi did not account for area correction
-      tempHegyi <- sum(surroundingTrees$DBH/(data$DBH[i]*surroundingTrees$XYDistance))
-      if(nrow(surroundingTrees_SameSpecies) > 0){
-        tempIntraHegyi <- sum(surroundingTrees_SameSpecies$DBH/(data$DBH[i]*surroundingTrees_SameSpecies$XYDistance))
-      } else {
-        tempIntraHegyi <- 0
+    years <- sort(unique(data$Year))
+    output <- data.table(PlotNumber = character(), TreeNumber = character(),
+                         Year = numeric(), H = numeric(), IntraH = numeric(), InterH = numeric())
+    
+    for(indiyear in years){
+      yeardata <- data[Year == indiyear,]
+      yeardata[,temptreeno:=1:length(coordX), by = PlotNumber]
+      for(i in 1:max(yeardata$temptreeno)){
+        if(sizeIndex == "DBH"){
+          targettrees <- yeardata[temptreeno == i, .(PlotNumber, TreeNumber,  temptreeno,
+                                                     toSpecies = Species,toX = coordX,
+                                                     toY = coordY, Distance, FocalSize = DBH)] 
+          surroundingTrees <- yeardata[temptreeno != i, .(PlotNumber, NeighborSize = DBH, coordX, coordY, Species)]
+        } else if(sizeIndex == "Biomass"){
+          targettrees <- yeardata[temptreeno == i, .(PlotNumber, TreeNumber,  temptreeno,
+                                                     toSpecies = Species,toX = coordX,
+                                                     toY = coordY, Distance, FocalSize = Biomass)] 
+          surroundingTrees <- yeardata[temptreeno != i, .(PlotNumber, NeighborSize = Biomass, coordX, coordY, Species)]
+        } else {
+          stop("Please specify sizeIndex from one of DBH or Biomass.")
+        }
+        surroundingTrees <- setkey(surroundingTrees, PlotNumber)[setkey(targettrees, PlotNumber),
+                                                                 nomatch = 0]
+        
+        
+        surroundingTrees[,XYDistance := (((coordX-toX)^2+(coordY-toY)^2)^0.5+0.1)]  
+        surroundingTrees <- surroundingTrees[XYDistance <= maxRadius,]
+        surroundingTrees_IntraSpecies <- surroundingTrees[Species == toSpecies,]
+        
+        totalHtable <- surroundingTrees[
+          , .(tempH = sum(NeighborSize/(FocalSize*(XYDistance^distanceWeight)))),
+          by = PlotNumber]
+        if(nrow(surroundingTrees_IntraSpecies) > 0){
+          IntraHtable <- surroundingTrees_IntraSpecies[
+            , .(tempIntraH = sum(NeighborSize/(FocalSize*(XYDistance^distanceWeight)))),
+            by = PlotNumber]
+          totalHtable <- dplyr::left_join(totalHtable, IntraHtable, by = "PlotNumber") %>%
+            data.table
+          totalHtable[is.na(tempIntraH), tempIntraH := 0]
+        } else {
+          totalHtable[,tempIntraH := 0]
+        }
+        totalHtable[, tempInterH := tempH - tempIntraH]
+        totalHtable <- setkey(totalHtable, PlotNumber)[setkey(targettrees[,.(PlotNumber, TreeNumber, 
+                                                                             Distance)],
+                                                              PlotNumber), nomatch = 0]
+        totalHtable[, overLapArea := 2*(maxRadius^2)*acos(0.5*Distance/maxRadius)-0.5*Distance*((4*(maxRadius^2)-Distance^2)^0.5)]
+        
+        output <- rbind(output, 
+                        totalHtable[, .(PlotNumber, TreeNumber, Year = indiyear, 
+                                        H = tempH*500/overLapArea,
+                                        IntraH = tempIntraH*500/overLapArea,
+                                        InterH = tempInterH*500/overLapArea)])
       }
-      d <- data$Distance[i]
-      A <- 2*(maxRadius^2)*acos(0.5*d/maxRadius)-0.5*d*((4*(maxRadius^2)-d^2)^0.5)
-      prop <- A/500.3439
-      data$Hegyi[i]<-tempHegyi/prop
-      data$IntraHegyiRatio[i]<-tempIntraHegyi/tempHegyi
-      if(i/1000==as.integer(i/1000))
-      { cat("\n  The ",i,"th Row has been processed. \n\n") }
+      cat(indiyear, "is done. \n")
     }
-    return(data)  
+    return(output)  
   })
