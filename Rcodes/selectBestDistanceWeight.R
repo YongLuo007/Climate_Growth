@@ -60,17 +60,44 @@ CIcompetitionData <- inputData[!is.na(Distance),]
 CIcompetitionData <- CIcompetitionData[,.(PlotNumber = PlotID, TreeNumber = TreeNumber,
                                           Year, Distance, Angle, DBH, Species, Biomass)]
 
+
+for(disweight in seq(0.7, 2, by = 0.1)){
   speciesData <- data.table::copy(analysesData)
-  BiomassCIdata1_3 <- HeghyiCICalculation(data = CIcompetitionData,
+  processCIdata <- data.table::copy(CIcompetitionData)
+  BiomassCIdata <- HeghyiCICalculation(data = processCIdata,
                                        maxRadius = 12.62,
-                                       sizeIndex = "Biomass",
-                                       distanceWeight = 1.3)
-  BiomassCIdata0_4 <- HeghyiCICalculation(data = CIcompetitionData,
-                                          maxRadius = 12.62,
-                                          sizeIndex = "Biomass",
-                                          distanceWeight = 0.4)
+                                       sizeIndex = "DBH",
+                                       distanceWeight = disweight)  
+  BiomassCIdata <- BiomassCIdata[, .(uniTreeID=paste(PlotNumber, "_", TreeNumber, sep = ""),
+                                     IniYear = Year,
+                                     IntraH, InterH)] %>%
+    unique(., by = c("uniTreeID", "IniYear"))
   
-  BiomassCIdata1_3[, uniTreeID:=paste(PlotNumber, "_", TreeNumber, sep = "")]
+  speciesData <- setkey(speciesData, uniTreeID, IniYear)[setkey(BiomassCIdata, uniTreeID, IniYear),
+                                                         nomatch = 0]
+  speciesData[,':='(logY = log(BiomassGR),
+                    logIntraHctd = log(IntraH+1) - mean(log(IntraH+1)),
+                    logInterHctd = log(InterH+1) - mean(log(InterH+1)))]
+  IntraHM <- lme(logY~logIntraHctd,
+                random = ~1|PlotID,
+                data = speciesData,
+                control = lmeControl(opt="optim", maxIter=50000, msMaxIter = 50000))
+  InterHM <- lme(logY~logInterHctd,
+                random = ~1|PlotID,
+                data = speciesData,
+                control = lmeControl(opt="optim", maxIter=50000, msMaxIter = 50000))
+  aictable <- data.table(disweight = disweight, IntraHAIC = AIC(IntraHM), InterHAIC = AIC(InterHM))
+  if(disweight == 0){
+    output <- aictable
+  } else{
+    output <- rbind(output, aictable)
+  }
+  
+}
+
+
+  
+  
   BiomassCIdata0_4[, uniTreeID:=paste(PlotNumber, "_", TreeNumber, sep = "")]
   BiomassCIdata1_3 <- unique(BiomassCIdata1_3, by = c("Year", "uniTreeID"))[,InterH := NULL]
   BiomassCIdata0_4 <- unique(BiomassCIdata0_4, by = c("Year", "uniTreeID"))[,IntraH := NULL]
