@@ -177,7 +177,7 @@ dropOneVariableFun <- function(output, testModel, testIDV, DV, ICTerm, ...){
       reducedIDV <- as.character(tempV[i,])
       reducedFomu <- paste(DV, "~", paste(reducedIDV, collapse = "+"), sep = "")
       themodel <- nlme::lme(as.formula(reducedFomu),...)
-      if(getIC(themodel, x = ICTerm)-BaseIC < 2 & getIC(themodel, x = ICTerm) < min(output$IC)){
+      if(getIC(themodel, x = ICTerm)-BaseIC < 5 & getIC(themodel, x = ICTerm) < min(output$IC)){
         thebestmodel <- themodel
         thebestIDV <- reducedIDV
       }
@@ -201,7 +201,7 @@ dropOneVariableFun <- function(output, testModel, testIDV, DV, ICTerm, ...){
                             MarR2 = as.numeric(MuMIn::r.squaredGLMM(themodel)[1]),
                             ConR2 = as.numeric(MuMIn::r.squaredGLMM(themodel)[2]))
     output <- rbind(output, outputAdd)
-    if(getIC(themodel, x = ICTerm)-BaseIC <= 2){
+    if(getIC(themodel, x = ICTerm)-BaseIC <= 5){
       thebestmodel <- themodel
       thebestIDV <- "NULL"
     }
@@ -220,7 +220,7 @@ addOneVariableFun <- function(allIDV, output, testModel, testIDV, DV, ICTerm, ..
     addedIDV <- c(testIDV, addedIDVs[i])
     addedFomu <- paste(DV, "~", paste(addedIDV, collapse = "+"), sep = "")
     themodel <- nlme::lme(as.formula(addedFomu),...)
-    if(getIC(themodel, x = ICTerm)-BaseIC < -2 & getIC(themodel, x = ICTerm) < min(output$IC)){
+    if(getIC(themodel, x = ICTerm)-BaseIC < -5 & getIC(themodel, x = ICTerm) < min(output$IC)){
       thebestmodel <- themodel
       thebestIDV <- reducedIDV
     }
