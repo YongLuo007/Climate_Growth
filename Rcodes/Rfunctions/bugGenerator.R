@@ -81,7 +81,7 @@ setMethod(
                                         "c18*logInterHctd[i]*logSBctd[i]", "c19*RBIctd[i]*logSActd[i]", 
                                         "c20*RBIctd[i]*logSBctd[i]", "c21*logSActd[i]*logSBctd[i]"))
       baseTable <- baseTable[coeff %in% coeffs, ]
-      equations <- paste(" logY[i] ~ a +", paste(baseTable$term, collapse = " + ", sep = ""),
+      equations <- paste(" logY[i] <- a +", paste(baseTable$term, collapse = " + ", sep = ""),
                          "+ u[Plot[i]] + q[Tree[i]]")
       priors <- paste("", baseTable$coeff, "~ dnorm(1,0.000001)\n")
       predictTrends <- TRUE
@@ -92,7 +92,7 @@ setMethod(
    predictInterHeffect[m] <- b4+c8*YearPredict[m]
   }
   for(n in 1:500){
-   predictY2[n] <- exp(a+b2*YearRBI_Yearctd[n]+b5*YearRBI_RBIctd[n]+c9*YearRBI_RBIctd[n]*YearRBI_Yearctd[n])
+   predictBAGR2[n] <- exp(a+b2*YearRBI_Yearctd[n]+b5*YearRBI_RBIctd[n]+c9*YearRBI_RBIctd[n]*YearRBI_Yearctd[n])
   }\n"
 } else {
   trendsPrediction <- ""
@@ -132,7 +132,7 @@ setMethod(
                                    "c18*logInterHctd[i]*logSBctd[i]", "c19*RBIctd[i]*logSActd[i]", 
                                    "c20*RBIctd[i]*logSBctd[i]", "c21*logSActd[i]*logSBctd[i]"))
   baseTable <- baseTable[coeff %in% coeffs, ]
-  equations <- paste(" logY[i] ~ a +", paste(baseTable$term, collapse = " + ", sep = ""),
+  equations <- paste(" logY[i] <- a +", paste(baseTable$term, collapse = " + ", sep = ""),
                      "+ u[Plot[i]] + q[Tree[i]]")
   priors <- paste("", baseTable$coeff, "~ dnorm(1,0.000001)\n")
   predictTrends <- TRUE
@@ -143,7 +143,7 @@ setMethod(
     predictInterHeffect[m] <- b4+c8*ClimatePredict[m]
   }
   for(n in 1:500){
-    predictY2[n] <- exp(a+b2*ClimateRBI_Climatectd[n]+b5*ClimateRBI_RBIctd[n]+c9*ClimateRBI_RBIctd[n]*ClimateRBI_Climatectd[n])
+    predictBAGR2[n] <- exp(a+b2*ClimateRBI_Climatectd[n]+b5*ClimateRBI_RBIctd[n]+c9*ClimateRBI_RBIctd[n]*ClimateRBI_Climatectd[n])
     }\n"
 } else {
   trendsPrediction <- ""
