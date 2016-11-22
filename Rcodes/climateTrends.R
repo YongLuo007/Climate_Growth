@@ -2,18 +2,17 @@ rm(list = ls())
 library(data.table); library(ggplot2); library(SpaDES)
 library(nlme); library(dplyr);library(MuMIn)
 workPath <- "~/GitHub/Climate_Growth"
-load(file.path(workPath, "data", "ClimateResults.RData"))
+load(file.path(workPath, "data", "ClimateModelSelection.RData"))
 rm(speciesData, indispecies, fullthemodel, i, indiclimate, newSigNIDV, reducedFormu,
    reducedModel, signIDV)
 
-tempallCoeff <- lapply(allClimateModels, function(x){data.table(summary(x)$tTable, keep.rownames = TRUE)})
-for(i in 1:length(tempallCoeff)){
-  modelName <- unlist(strsplit(names(tempallCoeff)[i], "_", fixed = T))
-  coeffIndi <- cbind(data.table(Model = rep(names(tempallCoeff)[i], nrow(tempallCoeff[[i]])),
+for(i in 1:length(allFixedCoeff)){
+  modelName <- unlist(strsplit(names(allFixedCoeff)[i], "_", fixed = T))
+  coeffIndi <- cbind(data.table(Model = rep(names(allFixedCoeff)[i], nrow(allFixedCoeff[[i]])),
                                 Species = modelName[1],
                                 Climate = modelName[2]), 
                      
-                     tempallCoeff[[i]])
+                     allFixedCoeff[[i]])
   if(i == 1){
     allCoeff <- coeffIndi
   } else {
@@ -25,53 +24,246 @@ for(i in 1:nrow(allCoeff)){
 }
 OverallResults <- data.table::copy(allCoeff)
 temperature <- c("ATA", "GSTA", "NONGSTA")
-CMI <- c("ACMIA", "GSCMIA", "NONGSCMIA")
-CO2 <- c("ACO2A", "GSCO2A", "NONGSCO2A")
+CMI <- c("ACMIA", "GSCMIA")
+CO2 <- c("ACO2A")
 longcol <- c(temperature, CMI, CO2)
-climateWithRBITable <- data.table(expand.grid(Species = as.character(studySpecies), 
-                                              Climate = as.character(longcol), 
-                                              RBI = seq(0, 100, by = 10),
-                                              stringsAsFactors = FALSE))
 
-maineffectTable <- data.table(Species = OverallResults[rn == "climatectd",]$Species,
-                              Climate = OverallResults[rn == "climatectd",]$Climate,
-                              maineffect = OverallResults[rn == "climatectd",]$Value,
-                              maineffect_SE = OverallResults[rn == "climatectd",]$Std.Error)
-interactionTable <- data.table(Species = OverallResults[rn == "climatectd:RBIctd",]$Species,
-                               Climate = OverallResults[rn == "climatectd:RBIctd",]$Climate,
-                               interactioneffect = OverallResults[rn == "climatectd:RBIctd",]$Value,
-                               Pvalue = OverallResults[rn == "climatectd:RBIctd",]$'p-value')
-climateWithRBITable <- dplyr::left_join(climateWithRBITable, maineffectTable, by = c("Species", "Climate")) %>%
+m <- 1
+for(indispecies in studySpecies){
+  if(indispecies == "All"){
+    speciesData <- data.table::copy(analysesData)
+  } else if(indispecies == "Other"){
+    speciesData <- analysesData[!(Species %in% majorSpecies),]
+  } else {
+    speciesData <- analysesData[Species == indispecies,]
+  }
+  climateWithClimateTable <- rbind(data.table(expand.grid(Species = indispecies,
+                                                              Climate = as.character(longcol), 
+                                                              CompetitionName = "IntraH",
+                                                              Competition = c(min(speciesData$IntraH1_3),
+                                                                         exp(mean(log(speciesData$IntraH1_3+1)))-1,
+                                                                         max(speciesData$IntraH1_3)),
+                                                              stringsAsFactors = FALSE)),
+                                       data.table(expand.grid(Species = indispecies,
+                                                              Climate = as.character(longcol), 
+                                                              CompetitionName = "InterH",
+                                                              Competition = c(min(speciesData$InterH0_4),
+                                                                         exp(mean(log(speciesData$InterH0_4+1)))-1,
+                                                                         max(speciesData$InterH0_4)),
+                                                              stringsAsFactors = FALSE)),
+                                       data.table(expand.grid(Species = indispecies,
+                                                              Climate = as.character(longcol), 
+                                                              CompetitionName = "RBI",
+                                                              Competition = c(min(speciesData$RBI),
+                                                                      mean(speciesData$RBI),
+                                                                      max(speciesData$RBI)),
+                                                              stringsAsFactors = FALSE)),
+                                       data.table(expand.grid(Species = indispecies,
+                                                              Climate = as.character(longcol), 
+                                                              CompetitionName = "SB",
+                                                              Competition = c(min(speciesData$PlotBiomass),
+                                                                     exp(mean(log(speciesData$PlotBiomass))),
+                                                                     max(speciesData$PlotBiomass)),
+                                                              stringsAsFactors = FALSE))) %>% data.table
+  climateWithClimateTable[CompetitionName == "IntraH",
+                          ':='(Competitionctd = log(Competition+1)-mean(log(speciesData$IntraH1_3+1)))]
+  climateWithClimateTable[CompetitionName == "InterH",
+                          ':='(Competitionctd = log(Competition+1)-mean(log(speciesData$InterH0_4+1)))]
+  climateWithClimateTable[CompetitionName == "RBI",
+                          ':='(Competitionctd = Competition-mean(speciesData$RBI))]
+  climateWithClimateTable[CompetitionName == "SB",
+                          ':='(Competitionctd = log(Competition)-mean(log(speciesData$PlotBiomass)))]
+  climateWithClimateTable[,xscale:=0]
+  
+  climateWithClimateTable[CompetitionName == "IntraH" & Competition == min(speciesData$IntraH1_3), 
+                          xscale:=as.numeric(m)]
+  climateWithClimateTable[CompetitionName == "IntraH" & Competition == exp(mean(log(speciesData$IntraH1_3+1)))-1, 
+                          xscale:=as.numeric(m+1)]
+  climateWithClimateTable[CompetitionName == "IntraH" & Competition == max(speciesData$IntraH1_3),
+                          xscale:=as.numeric(m+2)]
+  climateWithClimateTable[CompetitionName == "InterH" & Competition == min(speciesData$InterH0_4), 
+                          xscale:=as.numeric(m)]
+  climateWithClimateTable[CompetitionName == "InterH" & Competition == exp(mean(log(speciesData$InterH0_4+1)))-1,
+                          xscale:=as.numeric(m+1)]
+  climateWithClimateTable[CompetitionName == "InterH" & Competition == max(speciesData$InterH0_4),
+                          xscale:=as.numeric(m+2)]
+  climateWithClimateTable[CompetitionName == "RBI" & Competition == min(speciesData$RBI),
+                          xscale:=as.numeric(m+2)]
+  climateWithClimateTable[CompetitionName == "RBI" & Competition == mean(speciesData$RBI),
+                          xscale:=as.numeric(m+1)]
+  climateWithClimateTable[CompetitionName == "RBI" & Competition == max(speciesData$RBI), 
+                          xscale:=as.numeric(m)]
+  climateWithClimateTable[CompetitionName == "SB" & Competition == min(speciesData$PlotBiomass), 
+                          xscale:=as.numeric(m)]
+  climateWithClimateTable[CompetitionName == "SB" & Competition == exp(mean(log(speciesData$PlotBiomass))), 
+                          xscale:=as.numeric(m+1)]
+  climateWithClimateTable[CompetitionName == "SB" & Competition == max(speciesData$PlotBiomass),
+                          xscale:=as.numeric(m+2)]
+  m <- m+4
+
+  if(indispecies == "All"){
+    alloutput <- climateWithClimateTable
+  } else {
+    alloutput <- rbind(alloutput, climateWithClimateTable)
+  }
+}
+
+
+maineffectTable <- OverallResults[rn == "Climatectd",][, .(Species, Climate, mainEffect = Value,
+                                                           mainEffect_SE = Std.Error)]
+
+interactionTable <- OverallResults[rn %in% c("Climatectd:logIntraHctd", "Climatectd:logInterHctd",
+                                             "Climatectd:RBIctd", "Climatectd:logSBctd" ),][
+                                               ,.(rn, Species, Climate, interactEff = Value, 
+                                                  interactEff_SE = Std.Error)]
+interactionTable[rn == "Climatectd:logIntraHctd", CompetitionName:="IntraH"]
+interactionTable[rn == "Climatectd:logInterHctd", CompetitionName:="InterH"]
+interactionTable[rn == "Climatectd:RBIctd", CompetitionName:="RBI"]
+interactionTable[rn == "Climatectd:logSBctd", CompetitionName:="SB"]
+interactionTable[,rn:=NULL]
+
+alloutput1 <- dplyr::left_join(alloutput, maineffectTable, by = c("Species", "Climate")) %>%
   data.table
-climateWithRBITable[is.na(maineffect), ':='(maineffect = 0, maineffect_SE = 0)]
-climateWithRBITable <- dplyr::left_join(climateWithRBITable, interactionTable, by = c("Species", "Climate")) %>%
+alloutput1[is.na(mainEffect), ':='(mainEffect = 0, mainEffect_SE = 0)]
+
+alloutput1 <- dplyr::left_join(alloutput1, interactionTable, by = c("Species", "Climate", "CompetitionName")) %>%
   data.table
-climateWithRBITable <- climateWithRBITable[!is.na(interactioneffect),]
+alloutput1 <- alloutput1[is.na(interactEff),':='(interactEff = 0, 
+                                                  interactEff_SE = 0)]
+alloutput1[,':='(Effect = mainEffect+Competitionctd*interactEff, 
+                 Effect_SE = sqrt(mainEffect_SE^2+interactEff_SE^2))]
+alloutput1[xscale %in% c(2, 6, 10, 14, 18), ':='(Effect = mainEffect, 
+                                                 Effect_SE = mainEffect_SE)]
+climateWithCompTable <- data.table::copy(alloutput1)
+climateWithCompTable[Climate %in% c("ATA", "ACMIA", "ACO2A") & CompetitionName == "IntraH",
+                     SeasonComp:="WholeIntraH"]
+climateWithCompTable[Climate %in% c("ATA", "ACMIA", "ACO2A") & CompetitionName == "InterH",
+                     SeasonComp:="WholeInterH"]
+climateWithCompTable[Climate %in% c("ATA", "ACMIA", "ACO2A") & CompetitionName == "RBI",
+                     SeasonComp:="WholeRBI"]
+climateWithCompTable[Climate %in% c("ATA", "ACMIA", "ACO2A") & CompetitionName == "SB",
+                     SeasonComp:="WholeSB"]
 
+climateWithCompTable[Climate %in% c("GSTA", "GSCMIA", "GSCO2A") & CompetitionName == "IntraH",
+                     SeasonComp:="GSIntraH"]
+climateWithCompTable[Climate %in% c("GSTA", "GSCMIA", "GSCO2A") & CompetitionName == "InterH",
+                     SeasonComp:="GSInterH"]
+climateWithCompTable[Climate %in% c("GSTA", "GSCMIA", "GSCO2A") & CompetitionName == "RBI",
+                     SeasonComp:="GSRBI"]
+climateWithCompTable[Climate %in% c("GSTA", "GSCMIA", "GSCO2A") & CompetitionName == "SB",
+                     SeasonComp:="GSSB"]
 
-speciesdata <- rbind(copy(analysesData)[,.(RBI, Species="All")],
-                     analysesData[,.(RBI, Species)][!(Species %in% majorSpecies), Species:="Other"])
+climateWithCompTable[Climate %in% c("NONGSTA", "NONGSCMIA", "NONGSCO2A") & CompetitionName == "IntraH", 
+                     SeasonComp:="NGSIntraH"]
+climateWithCompTable[Climate %in% c("NONGSTA", "NONGSCMIA", "NONGSCO2A") & CompetitionName == "InterH", 
+                     SeasonComp:="NGSInterH"]
+climateWithCompTable[Climate %in% c("NONGSTA", "NONGSCMIA", "NONGSCO2A") & CompetitionName == "RBI", 
+                     SeasonComp:="NGSRBI"]
+climateWithCompTable[Climate %in% c("NONGSTA", "NONGSCMIA", "NONGSCO2A") & CompetitionName == "SB", 
+                     SeasonComp:="NGSSB"]
 
-speciesdata <- speciesdata[,.(meanRBI = mean(RBI)), by = Species]
-climateWithRBITable <- setkey(climateWithRBITable, Species)[setkey(speciesdata, Species),
-                                                                        nomatch = 0]
-climateWithRBITable[,':='(climateEffect = (RBI-meanRBI)*interactioneffect+maineffect,
-                          Species = factor(Species, levels = c("All", "JP", "TA", "BS", "Other"),
+climateWithCompTable[, SeasonComp:=factor(SeasonComp, 
+                                          levels = c("WholeIntraH", "WholeInterH", "WholeRBI", "WholeSB",
+                                                     "GSIntraH", "GSInterH", "GSRBI", "GSSB",
+                                                     "NGSIntraH", "NGSInterH", "NGSRBI", "NGSSB"))]
+
+climateWithCompTable[,':='(Species = factor(Species, levels = c("All", "JP", "TA", "BS", "Other"),
                                            labels = c("All species", "Jack pine", "Trembling aspen",
                                                       "Black spruce", "Other species")))]
-climateWithRBITable[Climate %in% c("ATA", "ACMIA", "ACO2A"), Season:="Whole year"]
-climateWithRBITable[Climate %in% c("GSTA", "GSCMIA", "GSCO2A"), Season:="Growing season"]
-climateWithRBITable[Climate %in% c("NONGSTA", "NONGSCMIA", "NONGSCO2A"), Season:="Non-growing season"]
-climateWithRBITable[, Season:=factor(Season, levels = c("Whole year", "Growing season", "Non-growing season"))]
-climateWithRBITable[Climate %in% c("ATA", "GSTA", "NONGSTA"), ClimateName:="Temperature"]
-climateWithRBITable[Climate %in% c("ACMIA", "GSCMIA", "NONGSCMIA"), ClimateName:="CMI"]
-climateWithRBITable[Climate %in% c("ACO2A", "GSCO2A", "NONGSCO2A"), ClimateName:="CO2"]
-climateWithRBITable[, ClimateName:=factor(ClimateName, levels = c("Temperature", "CMI", "CO2"))]
 
-rm(interactionTable, maineffectTable, speciesdata)
-maineffectTable <- unique(climateWithRBITable[maineffect != 0,.(Species, Climate, Season, ClimateName,
-                                                 climateEffect = maineffect, maineffect_SE, RBI = meanRBI)],
-                          by = c("Species", "Climate"))
+climateWithCompTable[Climate %in% c("ATA", "GSTA", "NONGSTA"), ClimateName:="Temperature"]
+climateWithCompTable[Climate %in% c("ACMIA", "GSCMIA", "NONGSCMIA"), ClimateName:="CMI"]
+climateWithCompTable[Climate %in% c("ACO2A", "GSCO2A", "NONGSCO2A"), ClimateName:="CO2"]
+climateWithCompTable[, ClimateName:=factor(ClimateName, levels = c("Temperature", "CMI", "CO2"))]
+
+
+
+startPoints <- climateWithCompTable[xscale %in% c(1, 5, 9, 13, 17),][, ':='(x = xscale+1)]
+endPoints <- climateWithCompTable[xscale %in% c(3, 7, 11, 15, 19), ][, .(Species, Climate, CompetitionName, 
+                                                                         xend = xscale-1, 
+                                                                         Effectend = Effect, Effectend_SE = Effect_SE)]
+segmentPoints <- setkey(startPoints, Species, Climate, CompetitionName)[setkey(endPoints, Species, Climate, CompetitionName), 
+                                                                        nomatch = 0]
+
+mainEffect <- climateWithCompTable[xscale %in% c(2, 6, 10, 14, 18) & mainEffect != 0,][,':='(x = xscale)]
+
+
+newlabels1 <- list("Temperature" = "Effect of temperature",
+                   "CMI" = "Effect of CMI",
+                   'CO2'= expression(paste("Effect of C", O[2])))
+newlabels2 <- list("WholeIntraH" = "IntraH",
+                   "WholeInterH" = "InterH",
+                   "WholeRBI" = "RBI",
+                   "WholeSB" = "SB",
+                   "GSIntraH" = "IntraH",
+                   "GSInterH" = "InterH",
+                   "GSRBI" = "RBI",
+                   "GSSB" = "SB",
+                   "NGSIntraH" = "IntraH",
+                   "NGSInterH" = "InterH",
+                   "NGSRBI" = "RBI",
+                   "NGSSB" = "SB")
+
+
+figure_labeller <- function(variable,value){
+  if(variable == "ClimateName"){
+     return(newlabels1[value])
+  } else if (variable == "SeasonComp"){
+    return(newlabels2[value])
+  } 
+}
+majorYpanelbreaklines <- data.table(SeasonComp = factor(c("GSIntraH", "NGSIntraH"),
+                                                        levels = c("WholeIntraH", "WholeInterH", "WholeRBI", "WholeSB",
+                                                                   "GSIntraH", "GSInterH", "GSRBI", "GSSB",
+                                                                   "NGSIntraH", "NGSInterH", "NGSRBI", "NGSSB")),
+                                    x = -Inf, xend = -Inf, y = -Inf, yend = Inf)
+
+minorYpanelbreaklines <- data.table(SeasonComp = factor(c("WholeInterH", "WholeRBI", "WholeSB",
+                                                          "GSInterH", "GSRBI", "GSSB",
+                                                          "NGSInterH", "NGSRBI", "NGSSB"),
+                                                        levels = c("WholeIntraH", "WholeInterH", "WholeRBI", "WholeSB",
+                                                                   "GSIntraH", "GSInterH", "GSRBI", "GSSB",
+                                                                   "NGSIntraH", "NGSInterH", "NGSRBI", "NGSSB")),
+                                    x = -Inf, xend = -Inf, y = -Inf, yend = Inf)
+
+figureB <- ggplot(data = segmentPoints[Effect != Effectend, ], aes(x = x, y = Effect))+
+  geom_segment(aes(x = -1, xend = 20, y = 0, yend = 0), linetype = 2, col = "gray", size = 1)+
+  geom_errorbar(aes(group = Species, ymin = Effect-1.98*Effect_SE, ymax = Effect+1.98*Effect_SE), 
+                width = 2, col = "gray", size = 1)+
+  geom_errorbar(aes(group = Species, ymin = Effectend-1.98*Effectend_SE, ymax = Effectend+1.98*Effectend_SE), 
+                width = 2, col = "gray", size = 1)+
+  geom_errorbar(data = mainEffect[interactEff == 0, ], aes(x = x, ymin = mainEffect-mainEffect_SE, 
+                                       ymax = mainEffect+mainEffect_SE, group = Species),
+                col = "gray", width = 2, size = 1)+
+  geom_segment(aes(group = Species, col = Species, xend = xend, yend = Effectend), 
+               arrow = arrow(length = unit(0.1, "npc")), size = 1)+
+  geom_segment(data = majorYpanelbreaklines, aes(x = x, xend = xend, y = y, yend = yend), 
+               size = 3, col = "white")+
+  geom_segment(data = minorYpanelbreaklines, aes(x = x, xend = xend, y = y, yend = yend), 
+               size = 1, col = "white")+
+  geom_point(data = mainEffect[interactEff == 0, ], aes(x = x, y = mainEffect, group = Species, col = Species))+
+  facet_grid(ClimateName~SeasonComp,
+             scales = "free_y", switch = "both", 
+             labeller = figure_labeller, drop = FALSE)+
+  theme(panel.grid = element_blank(),
+        panel.border = element_blank(),
+        panel.margin.x = unit(0, "lines"), 
+        axis.line.x = element_line(size = 1, colour = "black"),
+        axis.line.y = element_line(size = 1, colour = "black"),
+        axis.title = element_blank(),
+        axis.text.x = element_blank(),
+        axis.text.y = element_text(size = 12),
+        axis.ticks.x = element_blank(),
+        legend.position = c(0.8, 0.6),
+        legend.title = element_text(size = 13),
+        legend.text = element_text(size = 10),
+        legend.background = element_rect(colour = "black"),
+        strip.background = element_rect(colour = "white", fill = "white"),
+        strip.text.y = element_text(size = 15),
+        strip.text.x = element_text(size = 15, vjust = -2))
+
+
+
 
 
 climates <- read.csv(file.path(workPath, "data", "plotClimates.csv"), header = TRUE,

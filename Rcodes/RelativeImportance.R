@@ -1,211 +1,157 @@
 rm(list = ls())
-library(data.table); library(ggplot2); library(SpaDES)
-library(nlme); library(dplyr);library(MuMIn)
-if(as.character(Sys.info()[6]) == "yonluo"){
-  workPath <- "F:/MBgrowth"
-} else {
-  workPath <- "J:/MBgrowth"
+library(relaimpo);library(data.table);library(ggplot2)
+load(file.path("~/GitHub/Climate_Growth/Results/finalYearModels.RData"))
+bestIDVsnew <- list()
+for(i in 1:length(bestIDVs)){
+  indibestIDV <- bestIDVs[[i]]
+  indibestIDV <- unlist(lapply(lapply(lapply(lapply(indibestIDV, function(x) strsplit(x, ":")), function(s) unlist(s)),
+                               function(f) sort(f)), function(d) paste(d, collapse = "")))
+  bestIDVsnew[[i]] <- indibestIDV
 }
-analysesComponent <- "BAGR"
-load(file.path(workPath, paste(analysesComponent, "_mainResults.RData")))
-studySpecies <- c("JP", "TA", "BS")
-output <- data.table(Species = character(), Dominance = numeric(),
-                     Variable = character(), Value = numeric())
+
+lapply(bestIDVsnew, function(x) paste(x, collapse = "+"))
+
 for(indispecies in studySpecies){
-  themodel <- OverallModels[[paste(indispecies,"_all", sep = "")]]
-  speciesData <- data.frame(analysesData[Species == indispecies,])
-  # for DBH
-  predictData <- speciesData %>% data.table
-  predictData[,':='(Yearctd = 0, logIntraHctd = 0, logInterHctd = 0,
-                    DBHbyYearctd = 0, DBHbyIntraHctd = 0, DBHbyInterctd = 0,
-                    YearbyIntraHctd = 0, YearbyInterHctd = 0, InterHbyIntraHctd = 0)]
-  DBHsenstivity <- sd(predict(themodel, newdata = predictData, level = 0))
-  # for Year
-  predictData <- speciesData %>% data.table
-  predictData[,':='(logDBHctd = 0, logIntraHctd = 0, logInterHctd = 0,
-                    DBHbyYearctd = 0, DBHbyIntraHctd = 0, DBHbyInterctd = 0,
-                    YearbyIntraHctd = 0, YearbyInterHctd = 0, InterHbyIntraHctd = 0)]
+  speciesData <- finalAnalysesData[[indispecies]][
+    ,':='(logDBHctdlogInterHctd = logDBHctd*logInterHctd, 
+          logDBHctdlogIntraHctd = logDBHctd*logIntraHctd,
+          logDBHctdlogSActd = logDBHctd*logSActd, 
+          logDBHctdlogSBctd = logDBHctd*logSBctd,
+          logDBHctdRBIctd = logDBHctd*RBIctd,
+          logDBHctdYearctd = logDBHctd*Yearctd, 
+          logInterHctdlogIntraHctd = logInterHctd*logIntraHctd, 
+          logInterHctdlogSActd = logInterHctd*logSActd,
+          logInterHctdlogSBctd = logInterHctd*logSBctd, 
+          logInterHctdRBIctd = logInterHctd*RBIctd,
+          logInterHctdYearctd = logInterHctd*Yearctd,
+          logIntraHctdlogSActd = logIntraHctd*logSActd, 
+          logIntraHctdlogSBctd = logIntraHctd*logSBctd,
+          logIntraHctdRBIctd = logIntraHctd*RBIctd,
+          logIntraHctdYearctd = logIntraHctd*Yearctd, 
+          logSActdlogSBctd = logSActd*logSBctd,
+          logSActdRBIctd = logSActd*RBIctd,
+          logSActdYearctd = logSActd*Yearctd,
+          logSBctdRBIctd = logSBctd*RBIctd, 
+          logSBctdYearctd = logSBctd*Yearctd,
+          RBIctdYearctd = RBIctd*Yearctd)]
   
-  Yearsenstivity <- sd(predict(themodel, newdata = predictData, level = 0))
-  # for intraCI
-  predictData <- speciesData %>% data.table
-  predictData[,':='(Yearctd = 0, logDBHctd = 0, logInterHctd = 0,
-                    DBHbyYearctd = 0, DBHbyIntraHctd = 0, DBHbyInterctd = 0,
-                    YearbyIntraHctd = 0, YearbyInterHctd = 0, InterHbyIntraHctd = 0)]
-  
-  IntraCIsenstivity <- sd(predict(themodel, newdata = predictData, level = 0))
-  # for interCI
-  predictData <- speciesData %>% data.table
-  predictData[,':='(Yearctd = 0, logIntraHctd = 0, logDBHctd = 0,
-                    DBHbyYearctd = 0, DBHbyIntraHctd = 0, DBHbyInterctd = 0,
-                    YearbyIntraHctd = 0, YearbyInterHctd = 0, InterHbyIntraHctd = 0)]
-  InterCIsenstivity <- sd(predict(themodel, newdata = predictData, level = 0))
-  # for DBHbyYearctd
-  predictData <- speciesData %>% data.table
-  predictData[,':='(Yearctd = 0, logIntraHctd = 0, logDBHctd = 0,
-                    logInterHctd = 0, DBHbyIntraHctd = 0, DBHbyInterctd = 0,
-                    YearbyIntraHctd = 0, YearbyInterHctd = 0, InterHbyIntraHctd = 0)]
-  DBHbyYearsenstivity <- sd(predict(themodel, newdata = predictData, level = 0))
-  # for DBHbyIntraHctd
-  predictData <- speciesData %>% data.table
-  predictData[,':='(Yearctd = 0, logIntraHctd = 0, logDBHctd = 0,
-                    logInterHctd = 0, DBHbyYearctd = 0, DBHbyInterctd = 0,
-                    YearbyIntraHctd = 0, YearbyInterHctd = 0, InterHbyIntraHctd = 0)]
-  DBHbyIntraHsenstivity <- sd(predict(themodel, newdata = predictData, level = 0))
-  # for DBHbyInterctd
-  predictData <- speciesData %>% data.table
-  predictData[,':='(Yearctd = 0, logIntraHctd = 0, logDBHctd = 0,
-                    logInterHctd = 0, DBHbyYearctd = 0, DBHbyIntraHctd = 0,
-                    YearbyIntraHctd = 0, YearbyInterHctd = 0, InterHbyIntraHctd = 0)]
-  DBHbyInterHsenstivity <- sd(predict(themodel, newdata = predictData, level = 0))
-  # for YearbyIntraHctd
-  predictData <- speciesData %>% data.table
-  predictData[,':='(Yearctd = 0, logIntraHctd = 0, logDBHctd = 0,
-                    logInterHctd = 0, DBHbyYearctd = 0, DBHbyIntraHctd = 0,
-                    DBHbyInterctd = 0, YearbyInterHctd = 0, InterHbyIntraHctd = 0)]
-  YearbyIntraHsenstivity <- sd(predict(themodel, newdata = predictData, level = 0))
-  # for YearbyInterHctd
-  predictData <- speciesData %>% data.table
-  predictData[,':='(Yearctd = 0, logIntraHctd = 0, logDBHctd = 0,
-                    logInterHctd = 0, DBHbyYearctd = 0, DBHbyIntraHctd = 0,
-                    DBHbyInterctd = 0, YearbyIntraHctd = 0, InterHbyIntraHctd = 0)]
-  YearbyInterHsenstivity <- sd(predict(themodel, newdata = predictData, level = 0))
-  
-  
-  output <- rbind(output, data.table(Species = indispecies,
-                                     Dominance = 0,
-                                     Variable = c("DBH", "Year", "IntraCI", "InterCI",
-                                                  "DBHYear", "DBHIntraCI", "DBHInterCI",
-                                                  "YearIntraCI", "YearInterCI"),
-                                     Value = c(DBHsenstivity, Yearsenstivity,
-                                               IntraCIsenstivity, InterCIsenstivity,
-                                               DBHbyYearsenstivity, DBHbyIntraHsenstivity,
-                                               DBHbyInterHsenstivity, YearbyIntraHsenstivity,
-                                               YearbyInterHsenstivity)))
-  rm(DBHsenstivity, Yearsenstivity, IntraCIsenstivity, InterCIsenstivity, themodel)
-  for(i in 1:4){
-    speciesDominanceData <- data.frame(data.table(speciesData)[DominanceClass == paste("D", i, sep = ""),])
-    themodel <- DomianceAllModels[[paste(indispecies,"_D", i, sep = "")]]
-    predictData <- speciesDominanceData %>% data.table
-    predictData[,':='(Yearctd = 0, logIntraHctd = 0, logInterHctd = 0,
-                      DBHbyYearctd = 0, DBHbyIntraHctd = 0, DBHbyInterctd = 0,
-                      YearbyIntraHctd = 0, YearbyInterHctd = 0, InterHbyIntraHctd = 0)]
-    DBHsenstivity <- sd(predict(themodel, newdata = predictData, level = 0))
-    # for Year
-    predictData <- speciesDominanceData %>% data.table
-    predictData[,':='(logDBHctd = 0, logIntraHctd = 0, logInterHctd = 0,
-                      DBHbyYearctd = 0, DBHbyIntraHctd = 0, DBHbyInterctd = 0,
-                      YearbyIntraHctd = 0, YearbyInterHctd = 0, InterHbyIntraHctd = 0)]
-    
-    Yearsenstivity <- sd(predict(themodel, newdata = predictData, level = 0))
-    # for intraCI
-    predictData <- speciesDominanceData %>% data.table
-    predictData[,':='(Yearctd = 0, logDBHctd = 0, logInterHctd = 0,
-                      DBHbyYearctd = 0, DBHbyIntraHctd = 0, DBHbyInterctd = 0,
-                      YearbyIntraHctd = 0, YearbyInterHctd = 0, InterHbyIntraHctd = 0)]
-    
-    IntraCIsenstivity <- sd(predict(themodel, newdata = predictData, level = 0))
-    # for interCI
-    predictData <- speciesDominanceData %>% data.table
-    predictData[,':='(Yearctd = 0, logIntraHctd = 0, logDBHctd = 0,
-                      DBHbyYearctd = 0, DBHbyIntraHctd = 0, DBHbyInterctd = 0,
-                      YearbyIntraHctd = 0, YearbyInterHctd = 0, InterHbyIntraHctd = 0)]
-    InterCIsenstivity <- sd(predict(themodel, newdata = predictData, level = 0))
-    # for DBHbyYearctd
-    predictData <- speciesDominanceData %>% data.table
-    predictData[,':='(Yearctd = 0, logIntraHctd = 0, logDBHctd = 0,
-                      logInterHctd = 0, DBHbyIntraHctd = 0, DBHbyInterctd = 0,
-                      YearbyIntraHctd = 0, YearbyInterHctd = 0, InterHbyIntraHctd = 0)]
-    DBHbyYearsenstivity <- sd(predict(themodel, newdata = predictData, level = 0))
-    # for DBHbyIntraHctd
-    predictData <- speciesDominanceData %>% data.table
-    predictData[,':='(Yearctd = 0, logIntraHctd = 0, logDBHctd = 0,
-                      logInterHctd = 0, DBHbyYearctd = 0, DBHbyInterctd = 0,
-                      YearbyIntraHctd = 0, YearbyInterHctd = 0, InterHbyIntraHctd = 0)]
-    DBHbyIntraHsenstivity <- sd(predict(themodel, newdata = predictData, level = 0))
-    # for DBHbyInterctd
-    predictData <- speciesDominanceData %>% data.table
-    predictData[,':='(Yearctd = 0, logIntraHctd = 0, logDBHctd = 0,
-                      logInterHctd = 0, DBHbyYearctd = 0, DBHbyIntraHctd = 0,
-                      YearbyIntraHctd = 0, YearbyInterHctd = 0, InterHbyIntraHctd = 0)]
-    DBHbyInterHsenstivity <- sd(predict(themodel, newdata = predictData, level = 0))
-    # for YearbyIntraHctd
-    predictData <- speciesDominanceData %>% data.table
-    predictData[,':='(Yearctd = 0, logIntraHctd = 0, logDBHctd = 0,
-                      logInterHctd = 0, DBHbyYearctd = 0, DBHbyIntraHctd = 0,
-                      DBHbyInterctd = 0, YearbyInterHctd = 0, InterHbyIntraHctd = 0)]
-    YearbyIntraHsenstivity <- sd(predict(themodel, newdata = predictData, level = 0))
-    # for YearbyInterHctd
-    predictData <- speciesDominanceData %>% data.table
-    predictData[,':='(Yearctd = 0, logIntraHctd = 0, logDBHctd = 0,
-                      logInterHctd = 0, DBHbyYearctd = 0, DBHbyIntraHctd = 0,
-                      DBHbyInterctd = 0, YearbyIntraHctd = 0, InterHbyIntraHctd = 0)]
-    YearbyInterHsenstivity <- sd(predict(themodel, newdata = predictData, level = 0))
-    
-    
-    output <- rbind(output, data.table(Species = indispecies,
-                                       Dominance = i,
-                                       Variable = c("DBH", "Year", "IntraCI", "InterCI",
-                                                    "DBHYear", "DBHIntraCI", "DBHInterCI",
-                                                    "YearIntraCI", "YearInterCI"),
-                                       Value = c(DBHsenstivity, Yearsenstivity,
-                                                 IntraCIsenstivity, InterCIsenstivity,
-                                                 DBHbyYearsenstivity, DBHbyIntraHsenstivity,
-                                                 DBHbyInterHsenstivity, YearbyIntraHsenstivity,
-                                                 YearbyInterHsenstivity)))
-    rm(DBHsenstivity, Yearsenstivity, IntraCIsenstivity, InterCIsenstivity, themodel)
+  if(indispecies == "All species"){
+    bt <- calc.relimp(logY~logDBHctd+logIntraHctd+logInterHctd+logSActd+logDBHctdYearctd+logDBHctdlogIntraHctd+logDBHctdlogInterHctd+logDBHctdlogSActd+logIntraHctdYearctd+logInterHctdYearctd+logInterHctdlogIntraHctd+logIntraHctdlogSActd+logInterHctdlogSActd,
+                      data = speciesData,
+                      type = c("lmg"),
+                      rela = TRUE)
+  } else if (indispecies == "Jack pine"){
+    bt <- calc.relimp(logY~logDBHctd+logIntraHctd+logInterHctd+logSActd+logDBHctdlogIntraHctd+logDBHctdlogSActd+logIntraHctdYearctd+logSActdYearctd+logIntraHctdlogSActd+logInterHctdlogSActd,
+                      data = speciesData, rela = TRUE,
+                      type = c("lmg"))
+  } else if (indispecies == "Trembling aspen"){
+    bt <- calc.relimp(logY~logDBHctd+logIntraHctd+logInterHctd+logSActd+logDBHctdYearctd+logSActdYearctd+logInterHctdlogIntraHctd+logInterHctdlogSActd,
+                      data = speciesData, rela = TRUE,
+                      type = c("lmg"))
+  } else if (indispecies == "Black spruce"){
+    bt <- calc.relimp(logY~logDBHctd+Yearctd+logIntraHctd+logInterHctd+logSActd+logDBHctdYearctd+logDBHctdlogIntraHctd+logDBHctdlogInterHctd+logDBHctdlogSActd+logIntraHctdYearctd+logInterHctdYearctd+logInterHctdlogSActd,
+                      data = speciesData, rela = TRUE,
+                      type = c("lmg"))
+  } else if (indispecies == "Other species"){
+    bt <- calc.relimp(logY~logDBHctd+Yearctd+logIntraHctd+logInterHctd+logSActd+logDBHctdlogInterHctd+logSActdYearctd+logInterHctdlogIntraHctd+logInterHctdlogSActd,
+                      data = speciesData, rela = TRUE,
+                      type = c("lmg"))
   }
+  tempfixedLmg <- attributes(bt)
+  temptable <- data.table(Species = indispecies, Variable = tempfixedLmg$namen[-1],
+                          lmg = tempfixedLmg$lmg)
+  if(indispecies == "All species"){
+    importanceTable <- temptable
+  } else {
+    importanceTable <- rbind(importanceTable, temptable)
+  }
+  cat("Species", indispecies, "is done. \n")
 }
+ontogeny <- c("logDBHctd", "logSActd", "logDBHctdlogSActd")
+competition <- c("logIntraHctd", "logInterHctd", "RBIctd", "logSBctd",
+                 "logInterHctdlogIntraHctd", "logIntraHctdRBIctd",
+                 "logInterHctdRBIctd","logInterHctdlogSBctd",
+                 "logIntraHctdlogSBctd", "logSBctdRBIctd")
+climate <- "Yearctd"
+ontogenyCompetition <- c("logDBHctdlogInterHctd", "logDBHctdRBIctd", 
+                         "logDBHctdlogSBctd","logIntraHctdlogSActd", 
+                         "logInterHctdlogSActd", "logSActdRBIctd", 
+                         "logSActdlogSBctd","logDBHctdlogIntraHctd")
+ontogenyClimate <- c("logDBHctdYearctd","logSActdYearctd")
+competitionClimate <- c( "RBIctdYearctd", "logSBctdYearctd", 
+                         "logIntraHctdYearctd", 
+                         "logInterHctdYearctd")
 
-figureImportance <- ggplot(data = output, 
-                           aes(x = as.factor(Dominance), y = Value))+
-  geom_line(aes(col = Variable, group = Variable), size = 1.5)+
-  # scale_color_manual(values = c("red", "green", "blue", "black"))+
-  scale_y_continuous(name = "Relative importance",
-                breaks = seq(0, 1, length = 5))+
-  scale_x_discrete(name = "none", labels = c("Overall", "Severe suppressed", 
-                                             "Suppressed", "Codominant",
-                                             "Dominant"))+
-  # geom_errorbar(aes(x = Dominance, ymin = Value-1.98*Std.Error, ymax = Value+1.98*Std.Error, col = ModelSeq))+
-  # geom_hline(yintercept = 0, col = "blue")+
-  facet_wrap(~Species)+
+importanceTable[Variable %in% ontogeny, Group:="Ontogeny"]
+importanceTable[Variable %in% competition, Group:="Competition"]
+importanceTable[Variable %in% climate, Group:="Climate"]
+importanceTable[Variable %in% ontogenyCompetition, Group:="Ontogeny+Competition"]
+importanceTable[Variable %in% ontogenyClimate, Group:="Ontogeny+Climate"]
+importanceTable[Variable %in% competitionClimate, Group:="Competition+Climate"]
+
+
+newimportanceTable <- importanceTable[,.(importance = 100*sum(lmg)), 
+                                      by = c("Species", "Group")]
+
+newimportanceTable <- rbind(newimportanceTable, 
+                            data.table::copy(newimportanceTable)[1,][,Species:=" "])
+newimportanceTable[,':='(Species = factor(Species,
+                                          levels = c("All species", " ", "Jack pine", 
+                                                     "Trembling aspen", "Black spruce", 
+                                                     "Other species")),
+                         Group = factor(Group,
+                                        levels = c("Ontogeny", "Competition",
+                                                   "Climate", "Ontogeny+Competition",
+                                                   "Ontogeny+Climate", "Competition+Climate")))]
+subtitles <- data.table(x = 6, y = -2, 
+                        Species = factor(c("All species", " ", "Jack pine", 
+                                           "Trembling aspen", "Black spruce", 
+                                           "Other species"), 
+                                         levels=c("All species", " ", "Jack pine", 
+                                                  "Trembling aspen", "Black spruce", 
+                                                  "Other species")),
+                        labels = c("a", "", "b", "c", "d", "e"))
+
+segmentstable <- rbind(c(-Inf, Inf, -Inf, -Inf),
+                       c(-Inf, -Inf, -Inf, Inf))
+segmentstable <- data.frame(rbind(segmentstable, segmentstable, segmentstable,
+                       segmentstable, segmentstable))
+names(segmentstable) <- c("x", "xend", "y", "yend")
+segmentstable$Species <- factor(sort(rep(c("All species", "Jack pine", 
+                                    "Trembling aspen", "Black spruce", 
+                                    "Other species"), 2)),
+                                levels=c("All species", " ", "Jack pine", 
+                                         "Trembling aspen", "Black spruce", 
+                                         "Other species"))
+
+importanceFigure <- ggplot(data = newimportanceTable[Species != " "], aes(x = Group, y = importance))+
+  geom_bar(aes(col = Group, fill = Group), stat = 'identity')+
+  scale_x_discrete(limits = rev(c("Ontogeny", "Competition",
+                                       "Climate", "Ontogeny+Competition",
+                                       "Ontogeny+Climate", "Competition+Climate")))+
+  scale_y_continuous(name = "Relative importance (%)")+
+  geom_segment(data = segmentstable, 
+               aes(x = x, xend = xend, y = y, yend = yend))+
+  geom_text(data = subtitles, aes(x = x, y = y, label = labels), size = 10)+
+  
+  facet_wrap(~Species, ncol = 2)+
+  coord_flip()+
+  guides(col = guide_legend(title = "Variable group", nrow = 3),
+         fill = guide_legend(title = "Variable group", nrow = 3))+
   theme_bw()+
-  theme(panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank(),
-        axis.title.x = element_blank(),
-        axis.text.x = element_text(size = 15, angle = 45, hjust = 1),
-        axis.text.y = element_text(size = 13),
-        axis.title.y = element_text(size = 15),
-        legend.position = c(0.5, 0.2))
+  theme(panel.grid = element_blank(),
+        panel.border = element_blank(),
+        axis.title.y = element_blank(),
+        axis.title.x = element_text(size = 15),
+        axis.text.y = element_blank(),
+        axis.text.x = element_text(size = 12),
+        axis.ticks.y = element_blank(),
+        legend.title = element_text(size = 15),
+        legend.text = element_text(size = 13),
+        legend.position = c(0.75, 0.85),
+        strip.text = element_blank())
 
-signalTable <- output[Variable == "Year",.(Signal = sum(Value)), by = c("Species", "Dominance")]
-signalTableAdd <- output[Variable == "InterCI" | Variable == "IntraCI",.(Noise = sum(Value)), by = c("Species", "Dominance")]
-signalTable <- setkey(signalTable, Species, Dominance)[setkey(signalTableAdd, Species, Dominance),
-                                                       nomatch = 0]
-signalTable[,Ratio:=Signal/Noise]
-rm(signalTableAdd)
-
-figureSignalNoise <- ggplot(data = signalTable, 
-                            aes(x = as.factor(Dominance), y = Ratio))+
-  geom_point(aes(col = Species), size = 1.5)+
-  scale_color_manual(values = c("red", "green", "blue"))+
-  scale_y_continuous(name = "Signal-to-noise ratio")+
-  scale_x_discrete(name = "none", labels = c("Overall", "Severe suppressed", 
-                                             "Suppressed", "Codominant",
-                                             "Dominant"))+
-  # geom_errorbar(aes(x = Dominance, ymin = Value-1.98*Std.Error, ymax = Value+1.98*Std.Error, col = ModelSeq))+
-  # geom_hline(yintercept = 0, col = "blue")+
-  # facet_wrap(~Species)+
-  theme_bw()+
-  theme(panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank(),
-        axis.title.x = element_blank(),
-        axis.text.x = element_text(size = 15, angle = 45, hjust = 1),
-        axis.text.y = element_text(size = 13),
-        axis.title.y = element_text(size = 15),
-        legend.position = c(0.95, 0.2))
-
-
-
-
+ggsave(file = file.path("~/GitHub/Climate_Growth/TablesFigures/RelativeImportance.png"),
+       importanceFigure,
+       width = 9, height = 7.5)
 

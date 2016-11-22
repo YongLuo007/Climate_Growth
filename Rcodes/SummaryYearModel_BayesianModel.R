@@ -1,24 +1,24 @@
 rm(list=ls())
 library(data.table)
-studySpecies <- c("All species", "Jack pine", 
-                  "Trembling aspen", "Black spruce", "Other species")
-b5 <- list()
+studySpecies <- c("All", "JP", "TA", "BS", "Other")
+b2 <- list()
 a <- list()
-for(indispecies in studySpecies){
-  if(indispecies == "All species"){
+library(coda)
+workPath <- "~/GitHub/Climate_Growth"
+for(indispecies in studySpecies[2:5]){
+  if(indispecies == "All"){
+    addon <- ""
+  } else if(indispecies == "JP"){
+    addon <- "_3"
+  } else if(indispecies == "TA"){
+    addon <- "_3"
+  } else if(indispecies == "BS") {
     addon <- "_2"
-  } else if(indispecies == "Jack pine"){
-    addon <- "_6"
-  } else if(indispecies == "Trembling aspen"){
-    addon <- "_6"
-  } else if(indispecies == "Black spruce") {
-    addon <- "_6"
-  } else if(indispecies == "Other species"){
-    addon <- "_6"
+  } else if(indispecies == "Other"){
+    addon <- "_3"
   }
   for(k in 1:3){
-    workPath <- "~/GitHub/Climate_Growth"
-    load(file.path(workPath, "data", "MCMC analyses", 
+    load(file.path(workPath, "Results", "JAGS", "YearReduced",
                    indispecies, 
                    paste("chain", k, addon,
                          ".RData", sep = "")))
@@ -28,89 +28,122 @@ for(indispecies in studySpecies){
       allcoda[k] <- get(paste("coda", k, sep = ""))
     }
   }
-  rm(i, coda1, coda2, coda3, k)
+  rm(coda1, coda2, coda3, k)
   codatable <- data.table(as.matrix(allcoda))[,':='(time = time(allcoda), 
-                                            chain = sort(rep(1:3, 2500)))]
-  b5[[indispecies]] <- ggplot(data = codatable, aes(x = time, y = b5))+
-    geom_line(aes(group = chain, col = as.factor(chain)))
-  a[[indispecies]] <- ggplot(data = codatable, aes(x = time, y = a))+
-    geom_line(aes(group = chain, col = as.factor(chain)))
+                                            chain = sort(rep(1:3, length(time(allcoda)))))]
+  colNum <- which(names(codatable) %in% c("a", paste("b", 1:7, sep = ""), 
+                                           paste("c", 1:21, sep = "")))
+  subcoda <- allcoda[,colNum, drop = TRUE]
    # check the convergency
-  gelmantest <- gelman.diag(allcoda, multivariate = FALSE)
+  gelmantest <- gelman.diag(subcoda, multivariate = FALSE)
   gelmanResults <- data.table(gelmantest$psrf, keep.rownames = TRUE)
   # the main coefficients
   cat("For", indispecies, "\n")
-  print(gelmanResults[rn %in% c("a", paste("b", 1:5, sep = ""), 
-                                paste("c", 1:10, sep = ""),
-                                paste("d", 1:2, sep = "")), ])
+  print(gelmanResults[rn %in% c("a", paste("b", 1:7, sep = ""), 
+                                paste("c", 1:21, sep = "")),])
  # summary the posterior distributions
   allPosterialDisSumm <- summary(allcoda)
   allPosterialDisSumm1 <- data.table(cbind(allPosterialDisSumm$statistics, allPosterialDisSumm$quantiles),
                                     keep.rownames = TRUE)
-  fixedEffect_indispecies <- allPosterialDisSumm1[rn %in% c("a", paste("b", 1:5, sep = ""), paste("c", 1:10, sep = ""),
-                                                paste("d", 1:2, sep = "")), ][
-                                                  ,.(Species = indispecies, Variable = rn, Mean = Mean, 
-                                                     SD = SD, Lower95 = `2.5%`, Upper = `97.5%`)]
-  OverAllTrend <- allPosterialDisSumm1[rn %in% c(paste("predictY1[", 1:50, "]", sep = "")),]
-  TrendWithRBI <- allPosterialDisSumm1[rn %in% c(paste("predictY2[", 1:500, "]", sep = "")),]
-  Figure2Data_indispecies <- rbind(OverAllTrend[,.(Species = indispecies, Direction = "Overall Trend", 
+  fixedEffect_indispecies <- allPosterialDisSumm1[,.(Species = indispecies, rn, Mean = Mean, 
+                                                     SD = SD, Lower95 = `2.5%`, Upper95 = `97.5%`)]
+  fixedEffect_indispecies <- setkey(fixedEffect_indispecies, rn)[setkey(speciesinits[,.(rn = coeffs, Variable)], rn),
+                                                                 nomatch = 0][,.(Species, coeffs = rn, Variable,
+                                                                                 Mean, SD, Lower95, Upper95)]
+  
+  OverAllTrend <- allPosterialDisSumm1[rn %in% c(paste("predictBAGR1[", 1:50, "]", sep = "")),]
+  if(nrow(OverAllTrend)>0){
+    OverAllTrend <- OverAllTrend[,.(Species = indispecies, Direction = "Overall Trend", 
                                                    Year = YearPredict+mean(speciesData$Year), RBI = 0,
                                                    PredictedABGR = Mean, PredictedABGR_Lower = `2.5%`,
-                                                   PredictedABGR_Upper = `97.5%`)],
-                                   TrendWithRBI[,.(Species = indispecies, Direction = "Change with RBI",
+                                                   PredictedABGR_Upper = `97.5%`)]
+  } else {
+    OverAllTrend <- data.table(Species = character(), Direction = character(),
+                               Year = numeric(), RBI = numeric(), PredictedABGR = numeric(),
+                               PredictedABGR_Lower = numeric(), PredictedABGR_Upper = numeric())
+  }
+  TrendWithRBI <- allPosterialDisSumm1[rn %in% c(paste("predictBAGR2[", 1:500, "]", sep = "")),]
+  if(nrow(TrendWithRBI)>0){
+    TrendWithRBI <- TrendWithRBI[,.(Species = indispecies, Direction = "Change with RBI",
                                                    Year = YearRBITable$Year, RBI = YearRBITable$RBI,
                                                    PredictedABGR = Mean, PredictedABGR_Lower = `2.5%`,
-                                                   PredictedABGR_Upper = `97.5%`)])
-  IntraHTrendwithRBI <- allPosterialDisSumm1[rn %in% paste("PredictIntraH[", 1:500, "]", sep = ""),]
-  InterHTrendwithRBI <- allPosterialDisSumm1[rn %in% paste("PredictInterH[", 1:500, "]", sep = ""),]
-  Figure3Data_indispecies <- rbind(IntraHTrendwithRBI[,.(Direction = "IntraH", Competition = "IntraH",
-                                                         Species = indispecies, Year = YearRBITable$Year,
-                                                         RBI = YearRBITable$RBI, Value = Mean, 
-                                                         Value_Lower = `2.5%`, Value_Upper = `97.5%`,
-                                                         Main = 0)],
-                                   InterHTrendwithRBI[,.(Direction = "InterH", Competition = "InterH",
-                                                         Species = indispecies, Year = YearRBITable$Year,
-                                                         RBI = YearRBITable$RBI, Value = Mean, 
-                                                         Value_Lower = `2.5%`, Value_Upper = `97.5%`,
-                                                         Main = 0)],
-                                   data.table(Direction = c("IntraH", "InterH"), 
-                                              Competition = c("IntraH", "InterH"),
-                                              Species = indispecies, Year = mean(speciesData$Year),
-                                              RBI = 0, 
-                                              Value = allPosterialDisSumm1[rn %in% c("b2", "b3"), ]$Mean,
-                                              Value_Lower = allPosterialDisSumm1[rn %in% c("b2", "b3"), ]$`2.5%`,
-                                              Value_Upper = allPosterialDisSumm1[rn %in% c("b2", "b3"), ]$`97.5%`,
-                                              Main = 1))
-  # summary the posterior distribution for main Year effect (b5) and its change with RBI (c10)
-  allcodaDataTable <- data.table(as.matrix(allcoda))[,.(b2, b3, b5, c10, d1, d2)]
+                                                  PredictedABGR_Upper = `97.5%`)]
+  } else {
+    TrendWithRBI <- data.table(Species = character(), Direction = character(),
+                               Year = numeric(), RBI = numeric(), PredictedABGR = numeric(),
+                               PredictedABGR_Lower = numeric(), PredictedABGR_Upper = numeric())
+  }
+   Figure2Data_indispecies <- rbind(OverAllTrend, TrendWithRBI) 
+ 
   
-  tempdensity <- density(allcodaDataTable$b5, n = 500,
-                        from = min(allcodaDataTable$b5),
-                        to = max(allcodaDataTable$b5))
-  Yeareffect_indispecies <- data.table(Species = indispecies,
-                                       Yeareffect = tempdensity$x,
-                                       Density = tempdensity$y)
-  rm(tempdensity)
-  tempdensity <- density(allcodaDataTable$c10, n = 500,
-                         from = min(allcodaDataTable$c10),
-                         to = max(allcodaDataTable$c10))
-  YeareffectWithRBI_indispecies <- data.table(Species = indispecies,
-                                       Yeareffect = tempdensity$x,
-                                       Density = tempdensity$y)
-  if(indispecies == "All species"){
+  IntraHTrendwithRBI <- allPosterialDisSumm1[rn %in% paste("predictIntraHeffect[", 1:500, "]", sep = ""),]
+  if(nrow(IntraHTrendwithRBI)>0){
+    IntraHTrendwithRBI <- IntraHTrendwithRBI[,.(Direction = "IntraH", Competition = "IntraH",
+                                                Species = indispecies, 
+                                                Year = sort(unique(YearRBITable$Year)),
+                                                RBI = 0, Value = Mean, 
+                                                Value_Lower = `2.5%`, Value_Upper = `97.5%`,
+                                                Main = 0)]
+  } else {
+    IntraHTrendwithRBI <- data.table(Direction = character(), Competition = character(),
+                                     Species = character(), Year = numeric(), RBI = numeric(),
+                                     Value = numeric(), Value_Lower = numeric(), Value_Upper = numeric(),
+                                     Main = numeric())
+  }
+  InterHTrendwithRBI <- allPosterialDisSumm1[rn %in% paste("predictInterHeffect[", 1:500, "]", sep = ""),]
+  if(nrow(InterHTrendwithRBI)>0){
+    InterHTrendwithRBI <- InterHTrendwithRBI[,.(Direction = "InterH", Competition = "InterH",
+                                                Species = indispecies, 
+                                                Year = sort(unique(YearRBITable$Year)),
+                                                RBI = 0, Value = Mean, 
+                                                Value_Lower = `2.5%`, Value_Upper = `97.5%`,
+                                                Main = 0)]
+  } else {
+    InterHTrendwithRBI <- data.table(Direction = character(), Competition = character(),
+                                     Species = character(), Year = numeric(), RBI = numeric(),
+                                     Value = numeric(), Value_Lower = numeric(), Value_Upper = numeric(),
+                                     Main = numeric())
+  }
+  mainCompetitioneff <- allPosterialDisSumm1[rn %in% c("b3", "b4"), ][
+    , ':='(Species = indispecies, Year = mean(speciesData$Year), RBI = 0)]
+  mainCompetitioneff[rn == "b3", Competition := "IntraH"]
+  mainCompetitioneff[rn == "b4", Competition := "InterH"]
+  mainCompetitioneff <- mainCompetitioneff[,.(Direction = Competition, Competition, Species, Year, RBI, 
+                                              Value = Mean, Value_Lower = `2.5%`, Value_Upper = `97.5%`,
+                                              Main = 1)]
+
+  Figure3Data_indispecies <- rbind(IntraHTrendwithRBI, InterHTrendwithRBI, mainCompetitioneff)
+  # # summary the posterior distribution for main Year effect (b2) and its change with RBI (c10)
+  # allcodaDataTable <- data.table(as.matrix(allcoda))[,.(b2, b3, b2, c10, d1, d2)]
+  # 
+  # tempdensity <- density(allcodaDataTable$b2, n = 500,
+  #                       from = min(allcodaDataTable$b2),
+  #                       to = max(allcodaDataTable$b2))
+  # Yeareffect_indispecies <- data.table(Species = indispecies,
+  #                                      Yeareffect = tempdensity$x,
+  #                                      Density = tempdensity$y)
+  # rm(tempdensity)
+  # tempdensity <- density(allcodaDataTable$c10, n = 500,
+  #                        from = min(allcodaDataTable$c10),
+  #                        to = max(allcodaDataTable$c10))
+  # YeareffectWithRBI_indispecies <- data.table(Species = indispecies,
+  #                                      Yeareffect = tempdensity$x,
+  #                                      Density = tempdensity$y)
+  if(indispecies == "JP"){
     fixedEffect <- fixedEffect_indispecies
     Figure2Data <- Figure2Data_indispecies
     Figure3Data <- Figure3Data_indispecies
-    Yeareffect <- Yeareffect_indispecies
-    YeareffectWithRBI <- YeareffectWithRBI_indispecies
+    # Yeareffect <- Yeareffect_indispecies
+    # YeareffectWithRBI <- YeareffectWithRBI_indispecies
   } else {
     fixedEffect <- rbind(fixedEffect, fixedEffect_indispecies)
-    Figure2Data <- rbind(Figure2Data, Figure2Data_indispecies)
+     Figure2Data <- rbind(Figure2Data, Figure2Data_indispecies)
     Figure3Data <- rbind(Figure3Data, Figure3Data_indispecies)
-    Yeareffect <- rbind(Yeareffect, Yeareffect_indispecies)
-    YeareffectWithRBI <- rbind(YeareffectWithRBI, YeareffectWithRBI_indispecies)
+    # Yeareffect <- rbind(Yeareffect, Yeareffect_indispecies)
+    # YeareffectWithRBI <- rbind(YeareffectWithRBI, YeareffectWithRBI_indispecies)
   }
 }
+
 rm(coda1, coda2, coda3, allPosterialDisSumm, allPosterialDisSumm1,
    chain1, chain2,chain3, data, inits, OverAllTrend, TrendWithRBI, speciesData,
    tempdensity, workPath, Yeareffect_indispecies, YeareffectWithRBI_indispecies,

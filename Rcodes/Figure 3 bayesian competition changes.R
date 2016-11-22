@@ -8,44 +8,6 @@ rm(indispecies)
 
 
 
-for(indispecies in c("All species", "Jack pine", "Trembling aspen",
-                     "Black spruce", "Other species")){
-  Year <- seq(min(Figure3Data[Species == indispecies, ]$Year), 
-              max(Figure3Data[Species == indispecies, ]$Year), length = 50)
-  intrahtrend <- data.table(Species = indispecies,
-                            Competition = "IntraH",
-                            Year = Year, 
-                            Yearctd = Year-
-                              mean(Figure3Data[Species == indispecies &Main == 1,]$Year))
-  intrahtrend[,':='(Value = Yearctd*fixedEffect[Species == indispecies & Variable == "c7"]$Mean+
-                      fixedEffect[Species == indispecies & Variable == "b2"]$Mean,
-                    lineType = 1)]
-  if(fixedEffect[Species == indispecies & Variable == "c7"]$Lower95*
-     fixedEffect[Species == indispecies & Variable == "c7"]$Upper <= 0){
-    intrahtrend[, lineType := 2]
-  }
-  
-  interhtrend <- data.table(Species = indispecies,
-                            Competition = "InterH",
-                            Year = Year, 
-                            Yearctd = Year-
-                              mean(Figure3Data[Species == indispecies &Main == 1,]$Year))
-  interhtrend[,':='(Value = Yearctd*fixedEffect[Species == indispecies & Variable == "c9"]$Mean+
-                      fixedEffect[Species == indispecies & Variable == "b3"]$Mean,
-                    lineType = 1)]
-  if(fixedEffect[Species == indispecies & Variable == "c9"]$Lower95*
-     fixedEffect[Species == indispecies & Variable == "c9"]$Upper <= 0){
-    interhtrend[, lineType := 2]
-  }
-  CompetitionTrends_indis <- rbind(intrahtrend, interhtrend)
-  if(indispecies == "All species"){
-    CompetitionTrends <- CompetitionTrends_indis
-  } else{
-    CompetitionTrends <- rbind(CompetitionTrends, CompetitionTrends_indis)
-  }
-}
-rm(intrahtrend, interhtrend, Year, indispecies)
-
 CompetitionTrends[, ':='(Direction = factor(Competition, levels = c("IntraH", "InterH")),
                    Species = factor(Species, levels = c("All species", "Jack pine", "Trembling aspen", 
                                                         "Black spruce", "Other species")),
@@ -77,14 +39,13 @@ Figure3Data[, ':='(Direction = factor(Direction, levels = c("IntraH", "InterH"))
                    lineType = factor(lineType, levels = c(1, 2)))]
 
 Figure3 <- ggplot(data = Figure3Data[Main == 0,], aes(x = Year, y = Value))+
-  geom_line(aes(col = RBI, group = RBI, linetype = lineType), size = 1)+
-  geom_point(data = Figure3Data[Main == 1,], aes(x = Year, y = Value), col = "blue", size = 2)+
-  geom_line(data = CompetitionTrends, aes(x = Year, y = Value, linetype = lineType), col = "blue", size = 1)+
+  geom_line(size = 1)+
+  geom_point(data = Figure3Data[Main == 1,], aes(x = Year, y = Value), 
+             col = "blue", size = 2)+
   geom_errorbar(data = Figure3Data[Main == 1,], aes(ymin = Value_Lower, 
                                                     ymax = Value_Upper), 
                 width = 1, col = "blue", size = 1)+
-  guides(linetype = FALSE)+
-  scale_colour_continuous(name = "RBI", low = "#FF0000", high = "#00FF00", breaks = c(0, 50, 100))+
+  
   facet_grid(Species~Direction, scales = "free_y")+
   geom_segment(data = yaxisLineData,
                aes(x = Year, xend = Yearend, y = Value, yend = Valueend), size = 1.5)+

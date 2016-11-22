@@ -6,35 +6,38 @@ workPath <- "~/GitHub/Climate_Growth"
 load(file.path(workPath, "data", "Bayesian_YearModels.RData"))
 
 
-Figure2Data[,Species:=factor(Species, levels = c("All species", "Jack pine",
-                                                 "Trembling aspen", "Black spruce",
-                                                 "Other species"),
+Figure2Data[,Species:=factor(Species, levels = c("All", "JP",
+                                                 "TA", "BS",
+                                                 "Other"),
                                labels = c("All species", "Jack pine",
                                           "Trembling aspen", "Black spruce",
                                           "Other species"))]
 Figure2Data[, Direction:=factor(Direction, 
                                   levels = c("Overall Trend", "Change with RBI"),
                                   labels = c("Overall trend", "Change with RBI"))]
-Yeareffect[, Species := factor(Species, levels = c("All species", "Jack pine",
-                                                   "Trembling aspen", "Black spruce",
-                                                   "Other species"),
-                               labels = c("All species", "Jack pine",
-                                          "Trembling aspen", "Black spruce",
-                                          "Other species"))]
-YeareffectWithRBI[, Species := factor(Species, levels = c("All species", "Jack pine",
-                                                          "Trembling aspen", "Black spruce",
-                                                          "Other species"),
-                                      labels = c("All species", "Jack pine",
-                                                 "Trembling aspen", "Black spruce",
-                                                 "Other species"))]
+# Yeareffect[, Species := factor(Species, levels = c("All species", "Jack pine",
+#                                                    "Trembling aspen", "Black spruce",
+#                                                    "Other species"),
+#                                labels = c("All species", "Jack pine",
+#                                           "Trembling aspen", "Black spruce",
+#                                           "Other species"))]
+# YeareffectWithRBI[, Species := factor(Species, levels = c("All species", "Jack pine",
+#                                                           "Trembling aspen", "Black spruce",
+#                                                           "Other species"),
+#                                       labels = c("All species", "Jack pine",
+#                                                  "Trembling aspen", "Black spruce",
+#                                                  "Other species"))]
 
-AFCtable <- fixedEffect[Variable == "b5",][,.(Species = factor(Species, levels = c("All species", "Jack pine",
+AFCtable <- fixedEffect[Variable == "Yearctd",][,.(Species = factor(Species, levels = c("All", "JP",
+                                                                                        "TA", "BS",
+                                                                                        "Other"),
+                                                                    labels = c("All species", "Jack pine",
                                                                                    "Trembling aspen", "Black spruce",
                                                                                    "Other species")), 
                                               Direction = factor("Overall trend", levels = c("Overall trend", "Change with RBI")),
                                               label = paste(round(exp(Mean)-1, 3),
                                                             " (", round(exp(Lower95)-1, 3), "-",
-                                                            round(exp(Upper)-1, 3), ")", sep = ""))]
+                                                            round(exp(Upper95)-1, 3), ")", sep = ""))]
 AFCtable <- rbind(data.table::copy(AFCtable)[, ':='(Year = 1995, y = 0.95)], 
                   data.table::copy(AFCtable)[,':='(label = "AFC: ", Year = 1990, y = 0.95)])
 Figure2 <- ggplot(data = Figure2Data, aes(x = Year, y = PredictedABGR))+

@@ -4,7 +4,6 @@ workPath <- "~/GitHub/Climate_Growth"
 analysesData <- read.csv(file.path(workPath, "data", "MBdatafinal.csv"), header = TRUE,
                          stringsAsFactors = FALSE) %>% data.table
 studySpecies <- c("All", "JP", "BS", "TA", "Other")
-analysesData[,':='(IntraH = Hegyi*IntraHegyiRatio, InterH = Hegyi*(1-IntraHegyiRatio))]
 
 allbestmodels <- list()
 
@@ -16,12 +15,14 @@ for(indispecies in studySpecies){
   } else {
     speciesData <- analysesData[Species == indispecies,]
   }
-  speciesData[,':='(logY = log(BiomassGR), 
+  speciesData[,':='(logY = log(BiomassGR),
                     logDBHctd = log(IniDBH)-mean(log(IniDBH)), 
                     Yearctd = Year-mean(Year),
-                    logIntraHctd = log(IntraH+1)-mean(log(IntraH+1)),
-                    logInterHctd = log(InterH+1)-mean(log(InterH+1)),
-                    RBIctd = RBI - mean(RBI))]
+                    logIntraHctd = log(IntraH1_3+1)-mean(log(IntraH1_3+1)),
+                    logInterHctd = log(InterH0_4+1)-mean(log(InterH0_4+1)),
+                    RBIctd = RBI - mean(RBI),
+                    logSActd = log(SA)-mean(log(SA)),
+                    logSBctd = log(PlotBiomass)-mean(log(PlotBiomass)))]
   if(indispecies == "All"){
     themodel <- lme(logY~logDBHctd+Yearctd+logIntraHctd+logInterHctd+RBIctd+
                       logDBHctd:logInterHctd+logDBHctd:RBIctd+

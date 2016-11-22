@@ -12,7 +12,7 @@
 #'                         the selection. e.g., AIC, BIC, DIC
 #'                         default is AIC. 
 #'                         
-#' @param ICCute numeric specify the cut point                         
+#' @param ICCut numeric specify the cut point                         
 #' 
 #' @param ... other arguements in nlme::lme function, excluding formula.
 #'                  e.g., data, random, control and so on
@@ -128,8 +128,8 @@ setMethod("mixedModelSelection",
             
             previousModelName <- "Base"
             previousIC <- getIC(BaseModel, ICTerm)
-            cl <- parallel::makeCluster(detectCores()-1)
-            clusterExport(cl, c("getICformFomula", "lme", "AIC", "getIC"))
+            cl <- parallel::makeCluster(parallel::detectCores()-1)
+            parallel::clusterExport(cl, c("getICformFomula", "lme", "AIC", "getIC"))
             reduceMark <- 1
             expendMark <- 1
             
