@@ -1,0 +1,27 @@
+Species,Group,importance,importanceLower,importanceUpper
+All species,Ontogeny,28.27016943,26.30268782,30.02029295
+All species,Competition,24.23093781,22.67551524,25.27109175
+All species,OntogenyCompetition,2.561470522,2.055479664,5.143346016
+All species,CompetitionClimate,23.94052089,22.30210577,25.02839787
+All species,OntogenyClimate,20.99690135,19.06222133,22.25060263
+Jack pine,Ontogeny,33.67478214,28.0362123,41.84918628
+Jack pine,Competition,26.66561503,23.77091515,28.6511586
+Jack pine,OntogenyCompetition,7.63778774,3.9476412,12.32445378
+Jack pine,CompetitionClimate,26.6475383,23.40307716,28.5696326
+Jack pine,OntogenyClimate,5.374276794,2.972388189,7.34624243
+Trembling aspen,Ontogeny,34.71652471,30.78340028,37.49530679
+Trembling aspen,Competition,27.73725473,25.00858373,29.37685292
+Trembling aspen,OntogenyCompetition,7.66113536,5.563607936,13.99469464
+Trembling aspen,CompetitionClimate,26.46305579,23.83581158,28.08701545
+Trembling aspen,OntogenyClimate,3.42202941,0.811184748,6.997860689
+Black spruce,Ontogeny,30.55148564,26.42387428,32.9676398
+Black spruce,Competition,24.29588342,21.7966771,26.39366073
+Black spruce,OntogenyCompetition,2.472648198,1.428084513,6.453873751
+Black spruce,CompetitionClimate,23.56579596,21.01840867,25.75248637
+Black spruce,Climate,0.100483589,0.039516071,0.560451983
+Black spruce,OntogenyClimate,19.01370319,16.94706057,21.35149564
+Other species,Ontogeny,45.27476443,40.20313445,48.93983906
+Other species,Competition,43.88969483,39.19843991,46.46260602
+Other species,OntogenyCompetition,5.686996566,3.647239315,11.10194677
+Other species,Climate,0.146213544,0.064252179,3.240600645
+Other species,OntogenyClimate,5.002330637,0.280263254,9.055419405
