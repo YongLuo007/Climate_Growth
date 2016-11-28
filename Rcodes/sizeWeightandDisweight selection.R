@@ -4,7 +4,7 @@ library(SpaDES); library(MuMIn);library(parallel)
 if(as.character(Sys.info()[6]) == "yonluo"){
   workPath <- "~/Github/Climate_Growth"
 } else {
-  workPath <- "J:/MBgrowth"
+  workPath <- file.path("home", "yonluo", "Climate_Growth")
 }
 load(file.path(workPath, "data", "MBPSP.RData"))
 names(allPSP) <- c("PlotID", "FMU", "TWP", "RGE", "PlotNumber",
@@ -64,14 +64,15 @@ set(analysesData, , c("H_DBH", "IntraH_DBH", "InterH_DBH",
 
 output <- data.table(Species = character(), sizeWeight = character(),
                      disweight = numeric(), IntraHAIC = numeric(), InterHAIC = numeric())
-for(sizeWeight in seq(1, 2, by = 1)){
+for(sizeWeight in seq(3.1, 5, by = 0.1)){
   for(disweight in seq(0, 2, by = 0.1)){
     processCIdata <- data.table::copy(CIcompetitionData)
     CIdata <- HeghyiCICalculation(data = processCIdata,
                                   maxRadius = 12.62,
                                   sizeIndex = "Biomass",
                                   distanceWeight = disweight, 
-                                  sizeWeight = sizeWeight)
+                                  sizeWeight = sizeWeight,
+                                  assymetricScale = "Relative")
     analysesDataAll <- data.table::copy(analysesData)
     CIdata <- CIdata[, .(uniTreeID=paste(PlotNumber, "_", TreeNumber, sep = ""),
                          IniYear = Year,
@@ -109,8 +110,9 @@ for(sizeWeight in seq(1, 2, by = 1)){
 }
   
 
-
-# write.csv(output, file.path("~/GitHub/Climate_Growth/Results/bestWeightsbothsizeanddistance.csv"), row.names = F)
+rm(list = ls())
+output <- read.csv(file.path("~/GitHub/Climate_Growth/Results/bestWeightsbothsizeanddistanceRescaled.csv"),
+                   header = T, stringsAsFactors = F) %>% data.table
 
 a <- melt(output, id.vars = c("Species", "sizeWeight", "disweight"), 
           measure.vars = c("IntraHAIC", "InterHAIC"),
@@ -121,37 +123,51 @@ a[,':='(variable = factor(variable, levels = c("IntraHAIC", "InterHAIC"),
                          labels = c("All species", "Jack pine", "Trembling aspen", "Black spruce",
                                     "Other species")))]
 
-a[,minvalue:=min(Value), by = c("Species", "variable")]
-
+a[,':='(minvalue=min(Value), maxvalue = max(Value)), by = c("Species", "variable")]
+a[, scaledValue:=(Value-minvalue)/(maxvalue-minvalue)]
+cutpoints <- c(0, seq(0.05, 0.95, by = 0.1), 1)
+a[, scaledValue1:=cut(scaledValue, breaks = cutpoints,
+                     labels = seq(0, 1, by = 0.1))]
+a[, scaledValue1:=as.numeric(as.character(scaledValue1))]
 minvaluepoints <- a[Value == minvalue,]
-
-figure <- ggplot(data=a, aes(x = disweight, y = Value))+
+rectTable <- data.table(expand.grid(Species = c("All species", "Jack pine", "Trembling aspen", "Black spruce",
+                                                "Other species"),
+                                    variable = c("Intraspecific competition", "Interspecific competition")))
+rectTable[,':='(disweight = 1.3, xend = 2, sizeWeight = 0, yend = 1.5)]
+alphaTable <- data.table::copy(minvaluepoints)[,':='(disweight = 1.4, alpha = paste("alpha==", sizeWeight))]
+alphaTable[, sizeWeight := 0.75]
+betaTable <- data.table::copy(minvaluepoints)[,':='(disweight = 1.7, alpha = paste("beta==", disweight))]
+betaTable[, sizeWeight := 0.75]
+figure <- ggplot(data=a, aes(x = disweight, y = sizeWeight))+
   facet_grid(Species~variable, scales = "free_y")+
-  geom_line(aes(group = sizeWeight, col = sizeWeight), size = 1)+
-  geom_point(data = minvaluepoints, aes(x = sizeWeight, y = Value, col = disweight),
-             show.legend = FALSE, size = 2)+
-  
-  # geom_text(data = minvaluepoints[sizeIndex == "Biomass",], 
-  #           aes(x = disweight, y = Value, label = disweight),
-  #           vjust = -1, size = 5)+
-  scale_y_continuous(name = "AIC")+
-  scale_x_continuous(name = "Distance weight")+
-  # scale_color_manual(name = "Size", values = c("black", "gray"))+
-  guides(colour = guide_legend(title.position = "top", direction = "horizontal"))+
+  geom_raster(aes(fill = scaledValue), interpolate = TRUE)+
+  geom_contour(aes(z = scaledValue), col = "gray50")+
+  geom_point(data = minvaluepoints, aes(x = disweight, 
+                                        y = sizeWeight),
+             show.legend = FALSE, size = 3, col = "red")+
+  geom_point(aes(x = 1, y = 0), col = "green",size = 3)+
+  geom_rect(data = rectTable, aes(xmin = disweight, xmax = xend, ymin = sizeWeight, ymax = yend), 
+            fill = "white", col = "black")+
+  geom_text(data = alphaTable, 
+             aes(x = disweight, y = sizeWeight, label = alpha),
+             hjust = 0, size = 6, parse = TRUE)+
+  geom_text(data = betaTable, 
+          aes(x = disweight, y = sizeWeight, label = alpha),
+          hjust = 0, size = 6, parse = TRUE)+
+  scale_y_continuous(name = expression(paste("Assymetric competition coefficient (", alpha, ")")))+
+  scale_x_continuous(name = expression(paste("Crowdedness competition coefficient (", beta, ")")))+
+  scale_fill_continuous(name = "Scaled AIC", breaks = c(0, 1))+
   theme_bw()+
   theme(panel.grid = element_blank(),
         panel.border = element_blank(),
         axis.line.x = element_line(size = 1),
         axis.line.y = element_line(size = 1),
-        legend.title = element_text(size = 15),
-        legend.text = element_text(size = 13),
-        legend.position = c(0.1, 0.75),
-        legend.background = element_rect(colour = "black"),
-        axis.title = element_text(size = 15),
-        axis.text = element_text(size = 12),
-        strip.text = element_text(size = 14),
+        legend.position = "none",
+        axis.title = element_text(size = 17),
+        axis.text = element_text(size = 14),
+        strip.text = element_text(size = 15),
         strip.background = element_rect(colour = "white"))
 
-ggsave(file = file.path("~/GitHub/Climate_Growth/TablesFigures/bestdistanceweight.png"),
-       figure, width = 11.5, height = 10)
+ ggsave(file = file.path("~/GitHub/Climate_Growth/TablesFigures/bestdistanceweight.png"),
+        figure, width = 14, height = 15)
 
