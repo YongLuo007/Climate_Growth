@@ -1,38 +1,30 @@
 rm(list = ls())
 library(dplyr); library(SpaDES); library(nlme); library(data.table); library(parallel)
+library(MuMIn)
 workPath <- "~/GitHub/Climate_Growth"
-analysesData <- read.csv(file.path(workPath, "data", "MBdatafinal.csv"), header = TRUE,
+analysesData <- read.csv(file.path(workPath, "data", "newAllDataRescaledComp.csv"), header = TRUE,
                          stringsAsFactors = FALSE) %>% data.table
-studySpecies <- c("All", "JP", "BS", "TA", "Other")
-majorSpecies <- c("JP", "TA", "BS")
+studySpecies <- c("All species", "Jack pine", "Trembling aspen", "Black spruce", "Other species")
+source(file.path(workPath, "Rcodes", "Rfunctions", "mixedModelSelection.R"))
 bestClimateModels <- list()
 
 climates <- c("ATA", "GSTA", "NONGSTA",
               "ACMIA", "GSCMIA", 
               "ACO2A")
-source(file.path(workPath, "Rcodes", "Rfunctions", "mixedModelSelection.R"))
-
 for(indispecies in studySpecies){
-  if(indispecies == "All"){
-    speciesData <- data.table::copy(analysesData)
-  } else if(indispecies == "Other"){
-    speciesData <- analysesData[!(Species %in% majorSpecies),]
-  } else {
-    speciesData <- analysesData[Species == indispecies,]
-  }
+  speciesData <- analysesData[DataType == indispecies,]
   for(indiclimate in climates){
     speciesData$climate <- c(speciesData[, indiclimate, with = FALSE])
     speciesData[,':='(logY = log(BiomassGR), 
                       logDBHctd = log(IniDBH)-mean(log(IniDBH)), 
                       Climatectd = climate-mean(climate),
-                      logIntraHctd = log(IntraH1_3+1)-mean(log(IntraH1_3+1)),
-                      logInterHctd = log(InterH0_4+1)-mean(log(InterH0_4+1)),
-                      RBIctd = RBI - mean(RBI),
-                      logSActd = log(SA)-mean(log(SA)),
-                      logSBctd = log(PlotBiomass)-mean(log(PlotBiomass)))]
+                      logIntraHctd = log(IntraH+1)-mean(log(IntraH+1)),
+                      logInterHctd = log(InterH+1)-mean(log(InterH+1)),
+                      logSActd = log(SA)-mean(log(SA)))]
     tempoutput <- mixedModelSelection(DV = "logY", 
-                                      IDV = c("logDBHctd", "Climatectd", "logIntraHctd", "logInterHctd",
-                                              "RBIctd", "logSActd", "logSBctd"),
+                                      IDV = c("logDBHctd", "Climatectd", 
+                                              "logIntraHctd", "logInterHctd",
+                                              "logSActd"),
                                       maxInteraction = 2,
                                       ICTerm = "AIC",
                                       ICCut = 2,
@@ -46,7 +38,7 @@ for(indispecies in studySpecies){
     bestClimateModels[[paste(indispecies, "_", indiclimate, sep = "")]] <- thebestmodel
     cat("Species", indispecies, "and climate", indiclimate, "is done. \n")
     
-    if(indispecies == "All" & indiclimate == "ATA"){
+    if(indispecies == "All species" & indiclimate == "ATA"){
       modelSelectionSummaries <- tempoutput$modelSummary[, ':='(Species = indispecies, Climate = indiclimate)]
       bestIDVs <- list(tempoutput$bestIDV)
       names(bestIDVs) <- paste(indispecies, "_", indiclimate, sep = "")
@@ -57,5 +49,8 @@ for(indispecies in studySpecies){
     }
   }
 }
+allFixedCoeff <- lapply(bestClimateModels, function(x){
+  data.table(summary(x)$tTable, keep.rownames = TRUE)[, ':='(marR2 = r.squaredGLMM(x)[1],
+                                                             conR2 = r.squaredGLMM(x)[2])]})
 
 save.image(file.path(workPath, "data", "ClimateModelSelection.RData"))
