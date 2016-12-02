@@ -31,25 +31,21 @@ climateData <- setkey(climateData, Year, Month)[setkey(CO2data[,.(Year, Month, C
 # while NONGS is not growing season from previous October to current April
 # long term is defined as 1985 to 2011
 climateData[,CMI:=Prep - PET]
-climateData[,NonGSYear:=Year]
-climateData[Month>=10, NonGSYear:=Year+1]
+climateData[Month>=10, Year:=Year+1]
 AnnualClimate <- climateData[Year>=1984 & Year<= 2011,][,.(AT = mean(Temp), AP = sum(Prep),
                                                            ACMI = sum(CMI), CO2 = mean(CO2)), 
                                                         by = c("PlotID", "Year")]
 GSClimate <- climateData[Year>=1984 & Year<= 2011 & Month<=9 & Month >= 5,][
   ,.(GST = mean(Temp), GSP = sum(Prep),GSCMI = sum(CMI), GSCO2 = mean(CO2)), by = c("PlotID", "Year")]
 
-NONGSClimate <- climateData[Year>=1983 & Year<= 2011 & (Month > 9 | Month < 5),][
+NONGSClimate <- climateData[Year>=1984 & Year<= 2011 & (Month > 9 | Month < 5),][
   ,.(NONGST = mean(Temp), NONGSP = sum(Prep), NONGSCMI = sum(CMI), NONGSCO2 = mean(CO2)), 
-  by = c("PlotID", "NonGSYear")][NonGSYear>=1984 & NonGSYear<=2011,]
-setnames(NONGSClimate, "NonGSYear", "Year")
+  by = c("PlotID", "Year")]
+
 allClimates <- setkey(AnnualClimate, PlotID, Year)[setkey(GSClimate, PlotID, Year), nomatch = 0]
 allClimates <- setkey(allClimates, PlotID, Year)[setkey(NONGSClimate, PlotID, Year), nomatch = 0]
 
-set(inputData, ,c("ATA", "GSTA", "NONGSTA",
-                  "APA", "GSPA", "NONGSPA",
-                  "ACMIA", "GSCMIA", "NONGSCMIA",
-                  "ACO2A", "GSCO2A", "NONGSCO2A"), 0)
+
 
 for(i in 1:nrow(inputData)){
   plotclimate <- allClimates[PlotID == inputData$PlotID[i],]
@@ -70,3 +66,15 @@ for(i in 1:nrow(inputData)){
 }
 
 write.csv(inputData, file.path(workPath, "plotclimates.csv"), row.names=F)
+
+workPath <- "~/GitHub/Climate_Growth"
+analysesData <- read.csv(file.path(workPath, "data", "newAllDataRescaledComp.csv"), header = TRUE,
+                         stringsAsFactors = FALSE) %>% data.table
+set(analysesData, ,c("ATA", "GSTA", "NONGSTA",
+                  "APA", "GSPA", "NONGSPA",
+                  "ACMIA", "GSCMIA", "NONGSCMIA",
+                  "ACO2A", "GSCO2A", "NONGSCO2A"), NULL)
+thedata <- setkey(analysesData, PlotID, IniYear, FinYear)[setkey(inputData, PlotID, IniYear, FinYear),
+                                                     nomatch = 0]
+
+

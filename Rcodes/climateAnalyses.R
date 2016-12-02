@@ -2,7 +2,7 @@ rm(list = ls())
 library(dplyr); library(SpaDES); library(nlme); library(data.table); library(parallel)
 library(MuMIn)
 workPath <- "~/GitHub/Climate_Growth"
-analysesData <- read.csv(file.path(workPath, "data", "newAllDataRescaledComp.csv"), header = TRUE,
+analysesData <- read.csv(file.path(workPath, "data", "newAllDataRescaledComp1.csv"), header = TRUE,
                          stringsAsFactors = FALSE) %>% data.table
 studySpecies <- c("All species", "Jack pine", "Trembling aspen", "Black spruce", "Other species")
 source(file.path(workPath, "Rcodes", "Rfunctions", "mixedModelSelection.R"))
