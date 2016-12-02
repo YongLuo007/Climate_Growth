@@ -2,23 +2,18 @@ rm(list = ls())
 library(SpaDES); library(ggplot2); library(grid); library(gridExtra)
 library(dplyr);library(data.table)
 workPath <- "~/GitHub/Climate_Growth"
-analysesData <- read.csv(file.path(workPath, "data", "MBdatafinal.csv"), header = TRUE,
+analysesData <- read.csv(file.path(workPath, "data", "newAllDataRescaledComp.csv"), header = TRUE,
                          stringsAsFactors = FALSE) %>% data.table
-majorspecies <- c("JP", "TA", "BS")
 
-normalityCheckData <- analysesData[,.(BiomassGR, Species, newspecies = Species)]
-normalityCheckData[!(Species %in% majorspecies), newspecies:="Other"]
-normalityCheckData <- rbind(data.table::copy(normalityCheckData)[,newspecies:="All"],
-                            normalityCheckData)
-normalityCheckData[,Species:=factor(newspecies, levels = c("All", "JP", "", "TA", "BS", "Other"), 
-                                    labels = c("All species", "Jack pine", "", "Trembling aspen", 
+normalityCheckData <- data.table::copy(analysesData)
+normalityCheckData[,DataType:=factor(DataType, levels = c("All species", "Jack pine", "", "Trembling aspen", 
                                                "Black spruce", "Other species"))]
 
 
 # visual check
 normalityCheckFigure <- ggplot(normalityCheckData, aes(x = BiomassGR))+
   geom_histogram(aes(log(BiomassGR)), bins = 40)+
-  facet_wrap(~Species, ncol = 3, scales = "free_y", drop = FALSE)+
+  facet_wrap(~DataType, ncol = 3, scales = "free_y", drop = FALSE)+
   scale_y_continuous(name = "Number of observations")+
   scale_x_continuous(name = "log(ABGR)")+
   geom_segment(aes(x = -Inf, xend = Inf, y = -Inf, yend = -Inf), size = 1)+
@@ -40,35 +35,23 @@ ggsave(file = file.path(workPath, "TablesFigures", "Figure S2 NormalityCheck.png
 
 # check the multilinearity among independent variables using Zuur 2010 method
 source(file.path(workPath, "Rcodes", "Rfunctions", "HighstatLib_Zuur.R"))
-studyspecies <- c("All", "JP", "TA", "BS", "Other")
+studyspecies <- c("All species", "Jack pine", "Trembling aspen", "Black spruce", "Other species")
 for(indispecies in studyspecies){
-  if(indispecies == "All"){
-    independentV1 <- data.frame(analysesData[,.(RBI, IntraH = Hegyi*IntraHegyiRatio,
-                                                InterH = Hegyi*(1-IntraHegyiRatio),
-                                                DBH=IniDBH, Year)])
-  } else if (indispecies == "Other"){
-    independentV1 <- data.frame(analysesData[!(Species %in% majorspecies),
-                                             .(RBI, IntraH = Hegyi*IntraHegyiRatio,
-                                               InterH = Hegyi*(1-IntraHegyiRatio),
-                                               DBH=IniDBH, Year)])
-  } else {
-    independentV1 <- data.frame(analysesData[Species == indispecies,
-                                             .(RBI, IntraH = Hegyi*IntraHegyiRatio,
-                                               InterH = Hegyi*(1-IntraHegyiRatio),
-                                               DBH=IniDBH, Year)])
-  }
+  independentV1 <- data.frame(analysesData[DataType == indispecies, .(SA,
+                                                                      Year)])
+  
   corTable <- data.table(Species = indispecies,cor(independentV1), keep.rownames = T, key = "rn")
   viftest <- data.table(corvif(independentV1), keep.rownames = TRUE, key = "rn")
   viftest <- corTable[viftest, nomatch = 0]
   setnames(viftest, "rn", "Variable")
-  if(indispecies == "All"){
+  if(indispecies == "All species"){
     viftestoutput <- viftest
   } else {
     viftestoutput <- rbind(viftestoutput, viftest)
   }
 }
 viftestoutput <- cbind(viftestoutput[,.(Species, Variable)], 
-                       round(viftestoutput[,.(DBH, InterH, IntraH, RBI, Year, VIF=GVIF)], 2))
+                       round(viftestoutput[,.(DBH, SA, IntraH, InterH, Year, VIF=GVIF)], 2))
 
 print(viftestoutput)
 #     Species Variable   DBH InterH IntraH   RBI  Year  VIF
