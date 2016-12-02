@@ -4,78 +4,55 @@ library(nlme); library(dplyr);library(MuMIn); library(gridExtra)
 
 workPath <- "~/GitHub/Climate_Growth"
 
-analysesData <- read.csv(file.path(workPath, "data", "MBdatafinal.csv"), header = TRUE,
+analysesData <- read.csv(file.path(workPath, "data", "newAllDataRescaledComp.csv"), header = TRUE,
                          stringsAsFactors = FALSE) %>%
   data.table
 
-speciesdata <- data.table::copy(analysesData)
-speciesdata <- speciesdata[,.(PlotID, uniTreeID, ABGR = BiomassGR, IniDBH, Year, Hegyi, 
-                              RBI = RBI,
-                              ATA, GSTA, NONGSTA,
-                              APA, GSPA, NONGSPA,
-                              ACMIA, GSCMIA, NONGSCMIA,
-                              ACO2A, GSCO2A, NONGSCO2A)]
-plotsummary <- data.table(Variable = c(-2, -1, 0), 
-                          summary = c(length(unique(speciesdata$PlotID)),
-                                      length(unique(speciesdata$uniTreeID)),
-                                      nrow(speciesdata)))
-tempcolnames <- names(speciesdata)[3:19]
-speciesdata <- reshape(data = speciesdata, varying = tempcolnames,
-                       v.names = "Values",
-                       timevar = "Variable",
-                       direction = "long")
-speciesdata <- speciesdata[,.(mean = round(mean(Values), 2), sd = round(sd(Values), 2),
-                              min = round(min(Values), 2),
-                              max = round(max(Values), 2)), by = Variable]
-speciesdata <- speciesdata[,.(Variable, 
-                              summary = paste(mean, " ± ", sd, "(",
-                                              min, " to ", max, ")", sep = ""))]
-Table1Output <- rbind(speciesdata, plotsummary)
-names(Table1Output)[2] <- "allData_summary"
-rm(speciesdata)
-studySpecies <- c("JP", "TA", "BS", "Other")
+studySpecies <- c("All species", "Jack pine", "Trembling aspen",
+                  "Black spruce", "Other species")
 
 for(indispecies in studySpecies){
-  if(indispecies == "Other"){
-    speciesdata <- analysesData[!(Species %in% c("JP", "TA", "BS")),.(PlotID, uniTreeID, ABGR = BiomassGR,
-                                                                      IniDBH, Year, Hegyi, 
-                                                                      RBI = RBI,
-                                                                      ATA, GSTA, NONGSTA,
-                                                                      APA, GSPA, NONGSPA,
-                                                                      ACMIA, GSCMIA, NONGSCMIA,
-                                                                      ACO2A, GSCO2A, NONGSCO2A)]
-  } else {
-    speciesdata <- analysesData[Species == indispecies,.(PlotID, uniTreeID, ABGR = BiomassGR,
-                                                         IniDBH, Year, Hegyi, 
-                                                         RBI = RBI,
+  speciesdata <- analysesData[DataType == indispecies,.(PlotID, uniTreeID, ABGR = BiomassGR,
+                                                        logABGR = log(BiomassGR), 
+                                                         DBH = IniDBH, logDBH = log(IniDBH),
+                                                        SA, logSA = log(SA),
+                                                        Year, IntraH, logIntraH = log(IntraH+1),
+                                                        InterH, logInterH = log(InterH+1), 
                                                          ATA, GSTA, NONGSTA,
                                                          APA, GSPA, NONGSPA,
                                                          ACMIA, GSCMIA, NONGSCMIA,
                                                          ACO2A, GSCO2A, NONGSCO2A)]
-  }
-  
-  plotsummary <- data.table(Variable = c(-2, -1, 0), 
-                            summary = c(length(unique(speciesdata$PlotID)),
-                                        length(unique(speciesdata$uniTreeID)),
-                                        nrow(speciesdata)))
-  tempcolnames <- names(speciesdata)[3:19]
+  tempcolnames <- names(speciesdata)[3:25]
   speciesdata <- reshape(data = speciesdata, varying = tempcolnames,
                          v.names = "Values",
-                         timevar = "Variable",
+                         timevar = "tempV",
                          direction = "long")
   speciesdata <- speciesdata[,.(mean = round(mean(Values), 2), sd = round(sd(Values), 2),
                                 min = round(min(Values), 2),
-                                max = round(max(Values), 2)), by = Variable]
-  speciesdata <- speciesdata[,.(Variable, 
-                                summary = paste(mean, " ± ", sd, "(",
-                                                min, " to ", max, ")", sep = ""))]
-  speciesdata <- rbind(speciesdata, plotsummary)
+                                max = round(max(Values), 2)), by = tempV]
+
+  speciesdata[,Variable:=tempcolnames]
+  speciesdata[, summary := paste(mean, " ± ", sd, "(",
+                                                min, " to ", max, ")", sep = "")]
+  speciesdata[Variable %in% c("logABGR", "logDBH", "logSA"), summary:=paste(round(exp(mean), 2), 
+                                                                            "(", paste(round(exp(mean-sd), 2)),
+                                                                            " to ", paste(round(exp(mean+sd), 2)),
+                                                                            ")", sep = "")]
+  speciesdata[Variable %in% c("logIntraH", "logInterH"), summary:=paste(round(exp(mean)-1, 2), 
+                                                                            "(", paste(round(exp(mean-sd)-1, 2)),
+                                                                            " to ", paste(round(exp(mean+sd)-1, 2)),
+                                                                            ")", sep = "")]
   
-  names(speciesdata)[2] <- paste(indispecies, "_", names(speciesdata)[2], sep = "")
-  
-  Table1Output <- setkey(Table1Output, Variable)[setkey(speciesdata, Variable), nomatch = 0]
-  
+  speciesdata <- speciesdata[,.(tempV, Variable, summary)]
+  names(speciesdata)[3] <- indispecies
+  if(indispecies == "All species"){
+    Table1Output <- speciesdata
+    rm(speciesdata)
+  } else {
+    Table1Output <- setkey(Table1Output, Variable, tempV)[setkey(speciesdata, Variable, tempV), nomatch = 0]
+    rm(speciesdata)
+  }
 }
-Table1Output <- Table1Output[order(Variable),]
-Table1Output$Variable <- c("NofPlot", "NofTree", "NofObs", tempcolnames)
-write.csv(Table1Output, file.path(workPath, "TablesFigures","table1.csv"), row.names = FALSE)
+Table1Output <- Table1Output[order(tempV),]
+Table1Output[,tempV:=NULL]
+write.csv(Table1Output, file.path(workPath, "TablesFigures","table S1.csv"), row.names = FALSE)

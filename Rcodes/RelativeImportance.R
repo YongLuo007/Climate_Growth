@@ -1,7 +1,7 @@
 rm(list = ls())
 library(relaimpo);library(data.table);library(ggplot2); library(dplyr)
 workPath <- "~/GitHub/Climate_Growth"
-load(file.path(workPath, "Results", "finalYearModels.RData"))
+load(file.path(workPath, "data", "finalYearModels.RData"))
 firstRun <- FALSE
 if(firstRun){
   bestIDVs <- lapply(bestFomula, function(s) as.character(s)[[3]])
@@ -106,8 +106,9 @@ newimportanceTable[,':='(Species = factor(Species,
                                                          "Climate", "OntogenyCompetition",
                                                          "OntogenyClimate", "CompetitionClimate"),
                                         labels = c("Ontogeny", "Competition",
-                                                   "Climate", "Ontogeny×Competition",
-                                                   "Ontogeny×Climate", "Competition×Climate")))]
+                                                   "Climate change", "Ontogeny × Competition",
+                                                   "Ontogeny × Climate change",
+                                                   "Competition × Climate change")))]
 subtitles <- data.table(x = 6, y = -2, 
                         Species = factor(c("All species", " ", "Jack pine", 
                                            "Trembling aspen", "Black spruce", 
@@ -130,7 +131,7 @@ segmentstable$Species <- factor(sort(rep(c("All species", "Jack pine",
                                          "Other species"))
 for(i in 1:length(allFixedCoeff)){
   label1 <- data.table(Species = names(allFixedCoeff[i]), 
-                       marR2 = paste("Margional~R^2==", round(allFixedCoeff[[i]]$marR2[1], 2)),
+                       marR2 = paste("Marginal~R^2==", round(allFixedCoeff[[i]]$marR2[1], 2)),
                        conR2 = paste("Conditional~R^2==", round(allFixedCoeff[[i]]$conR2[1], 2)))
   if(i == 1){
     labelAll <- label1
@@ -146,8 +147,9 @@ importanceFigure <- ggplot(data = newimportanceTable[Species != " "], aes(x = Gr
   geom_bar(aes(col = Group, fill = Group), stat = 'identity')+
   geom_errorbar(aes(ymin = importanceLower, ymax = importanceUpper), col = "gray", width = 0.25)+
   scale_x_discrete(limits = rev(c("Ontogeny", "Competition",
-                                  "Climate", "Ontogeny×Competition",
-                                  "Ontogeny×Climate", "Competition×Climate")))+
+                                  "Climate change", "Ontogeny × Competition",
+                                  "Ontogeny × Climate change", 
+                                  "Competition × Climate change")))+
   scale_y_continuous(name = "Relative importance (%)")+
   geom_segment(data = segmentstable, 
                aes(x = x, xend = xend, y = y, yend = yend))+
@@ -173,7 +175,7 @@ importanceFigure <- ggplot(data = newimportanceTable[Species != " "], aes(x = Gr
         legend.position = c(0.75, 0.85),
         strip.text = element_blank())
 
-ggsave(file = file.path(workPath, "TablesFigures", "RelativeImportance.png"),
+ggsave(file = file.path(workPath, "TablesFigures", "Figure 2. RelativeImportance.png"),
        importanceFigure,
        width = 9, height = 7.5)
 

@@ -77,12 +77,21 @@ figureS1_bData <- figureS1_bData[,.(NofTree = sum(NofTree)), by = c("Year", "Spe
 figureS1_bData[,Species:=factor(Species, levels = c("All", "JP", "TA", "BS", "Other"),
                                 labels = c("All species", "Jack pine", "Trembling aspen",
                                            "Black spruce", "Other species"))]
+summaryPlot <- allspeciesdatanew[,.(NofPlot = length(unique(PlotID)), NofTree = length(unique(uniTreeID)),
+                                    NofObs = length(IniBA)), by = Species]
+summaryPlot[, Species:=c("All species", "Jack pine", "Trembling aspen",
+                         "Black spruce", "Other species")]
+summaryPlot[,legendTexts:=paste(Species, ": ", NofPlot, " plots, ", NofTree, " trees, ",
+                                NofObs, " observations.", sep = "")]
 
 FigureS1_b <- ggplot(data = figureS1_bData, aes(x = Year, y = NofTree))+
   geom_line(aes(group = Species, col = Species), size = 1)+
-  scale_y_continuous(name = "Number of tree", limits = c(0, 20000), breaks = seq(0, 20000, by = 5000))+
+  scale_y_continuous(name = "Number of tree", limits = c(0, 30000), breaks = seq(0, 20000, by = 5000))+
   scale_x_continuous(name = "Year", limits = c(1985, 2012), breaks = seq(1985, 2011, by = 5))+
-  annotate("text", x = 1985, y = 20000, label = "b", size = 10)+
+  scale_color_manual(name = "Species", values = c("red", "blue", "green", "black", "pink"),
+                     labels = summaryPlot$legendTexts)+
+  guides(colour  = guide_legend(nrow = 3))+
+  annotate("text", x = 1985, y = 30000, label = "b", size = 10)+
   theme_bw()+
   theme(panel.grid.major = element_blank(),
         panel.grid.minor = element_blank(),
@@ -91,7 +100,7 @@ FigureS1_b <- ggplot(data = figureS1_bData, aes(x = Year, y = NofTree))+
         axis.line.y = element_line(size = 1, colour = "black"),
         axis.text = element_text(size = 12),
         axis.title = element_text(size = 15),
-        legend.position = c(0.16, 0.75),
+        legend.position = c(0.53, 0.85),
         legend.title = element_text(size = 10),
         legend.text = element_text(size = 9))
 
