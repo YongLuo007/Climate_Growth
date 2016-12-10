@@ -2,7 +2,7 @@ rm(list = ls())
 library(data.table); library(ggplot2); library(SpaDES)
 library(nlme); library(dplyr);library(MuMIn)
 if(as.character(Sys.info()[6]) == "yonluo"){
-  workPath <- "~/Associates/Yong Luo/Climate_Growth/MBgrowth"
+  workPath <- "~/Github/Climate_Growth"
 } else {
   workPath <- "J:/MBgrowth"
 }
@@ -33,13 +33,14 @@ climateData <- setkey(climateData, Year, Month)[setkey(CO2data[,.(Year, Month, C
 climateData[,CMI:=Prep - PET]
 climateData[Month>=10, Year:=Year+1]
 AnnualClimate <- climateData[Year>=1984 & Year<= 2011,][,.(AT = mean(Temp), AP = sum(Prep),
+                                                           APET = sum(PET),
                                                            ACMI = sum(CMI), CO2 = mean(CO2)), 
                                                         by = c("PlotID", "Year")]
 GSClimate <- climateData[Year>=1984 & Year<= 2011 & Month<=9 & Month >= 5,][
-  ,.(GST = mean(Temp), GSP = sum(Prep),GSCMI = sum(CMI), GSCO2 = mean(CO2)), by = c("PlotID", "Year")]
+  ,.(GST = mean(Temp), GSP = sum(Prep), GSPET = sum(PET), GSCMI = sum(CMI), GSCO2 = mean(CO2)), by = c("PlotID", "Year")]
 
 NONGSClimate <- climateData[Year>=1984 & Year<= 2011 & (Month > 9 | Month < 5),][
-  ,.(NONGST = mean(Temp), NONGSP = sum(Prep), NONGSCMI = sum(CMI), NONGSCO2 = mean(CO2)), 
+  ,.(NONGST = mean(Temp), NONGSP = sum(Prep), NONGSPET = sum(PET), NONGSCMI = sum(CMI), NONGSCO2 = mean(CO2)), 
   by = c("PlotID", "Year")]
 
 allClimates <- setkey(AnnualClimate, PlotID, Year)[setkey(GSClimate, PlotID, Year), nomatch = 0]
@@ -54,18 +55,25 @@ for(i in 1:nrow(inputData)){
   inputData$ATA[i] <- mean(plotclimate[Year > iniyear & Year <= finyear,]$AT)-mean(plotclimate$AT) 
   inputData$GSTA[i] <- mean(plotclimate[Year > iniyear & Year <= finyear,]$GST)-mean(plotclimate$GST)
   inputData$NONGSTA[i] <- mean(plotclimate[Year > iniyear & Year <= finyear,]$NONGST)-mean(plotclimate$NONGST)
+  
   inputData$APA[i] <- mean(plotclimate[Year > iniyear & Year <= finyear,]$AP)-mean(plotclimate$AP) 
   inputData$GSPA[i] <- mean(plotclimate[Year > iniyear & Year <= finyear,]$GSP)-mean(plotclimate$GSP)
   inputData$NONGSPA[i] <- mean(plotclimate[Year > iniyear & Year <= finyear,]$NONGSP)-mean(plotclimate$NONGSP) 
+  
+  inputData$APETA[i] <- mean(plotclimate[Year > iniyear & Year <= finyear,]$APET)-mean(plotclimate$APET) 
+  inputData$GSPETA[i] <- mean(plotclimate[Year > iniyear & Year <= finyear,]$GSPET)-mean(plotclimate$GSPET)
+  inputData$NONGSPETA[i] <- mean(plotclimate[Year > iniyear & Year <= finyear,]$NONGSPET)-mean(plotclimate$NONGSPET) 
+  
   inputData$ACMIA[i] <- mean(plotclimate[Year > iniyear & Year <= finyear,]$ACMI)-mean(plotclimate$ACMI) 
   inputData$GSCMIA[i] <- mean(plotclimate[Year > iniyear & Year <= finyear,]$GSCMI)-mean(plotclimate$GSCMI)
   inputData$NONGSCMIA[i] <- mean(plotclimate[Year > iniyear & Year <= finyear,]$NONGSCMI)-mean(plotclimate$NONGSCMI)
   inputData$ACO2A[i] <- mean(plotclimate[Year > iniyear & Year <= finyear,]$CO2)-mean(plotclimate$CO2) 
   inputData$GSCO2A[i] <- mean(plotclimate[Year > iniyear & Year <= finyear,]$GSCO2)-mean(plotclimate$GSCO2)
   inputData$NONGSCO2A[i] <- mean(plotclimate[Year > iniyear & Year <= finyear,]$NONGSCO2)-mean(plotclimate$NONGSCO2)
+  
 }
 
-write.csv(inputData, file.path(workPath, "plotclimates.csv"), row.names=F)
+write.csv(inputData, file.path(workPath, "data", "plotclimates.csv"), row.names=F)
 
 workPath <- "~/GitHub/Climate_Growth"
 analysesData <- read.csv(file.path(workPath, "data", "newAllDataRescaledComp.csv"), header = TRUE,
