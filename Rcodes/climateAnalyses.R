@@ -2,7 +2,7 @@ rm(list = ls())
 library(dplyr); library(SpaDES); library(nlme); library(data.table); library(parallel)
 library(MuMIn)
 workPath <- "~/GitHub/Climate_Growth"
-analysesData <- read.csv(file.path(workPath, "data", "newAllDataRescaledComp1.csv"), header = TRUE,
+analysesData <- read.csv(file.path(workPath, "data", "newAllDataRescaledComp.csv"), header = TRUE,
                          stringsAsFactors = FALSE) %>% data.table
 studySpecies <- c("All species", "Jack pine", "Trembling aspen", "Black spruce", "Other species")
 source(file.path(workPath, "Rcodes", "Rfunctions", "mixedModelSelection.R"))
@@ -29,11 +29,11 @@ for(indispecies in studySpecies){
                                       ICTerm = "AIC",
                                       ICCut = 2,
                                       data = speciesData,
-                                      random = ~1|PlotID/uniTreeID, 
+                                      random = ~1|PlotID, 
                                       control = lmeControl(opt="optim", maxIter=50000, msMaxIter = 50000))
     thebestmodel <- lme(as.formula(paste("logY~", paste(tempoutput$bestIDV, collapse = "+"))),
                         data = speciesData,
-                        random = ~1|PlotID/uniTreeID, 
+                        random = ~1|PlotID, 
                         control = lmeControl(opt="optim", maxIter=50000, msMaxIter = 50000))
     bestClimateModels[[paste(indispecies, "_", indiclimate, sep = "")]] <- thebestmodel
     cat("Species", indispecies, "and climate", indiclimate, "is done. \n")
