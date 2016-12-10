@@ -77,20 +77,20 @@ figureS1_bData <- figureS1_bData[,.(NofTree = sum(NofTree)), by = c("Year", "Spe
 figureS1_bData[,Species:=factor(Species, levels = c("All", "JP", "TA", "BS", "Other"),
                                 labels = c("All species", "Jack pine", "Trembling aspen",
                                            "Black spruce", "Other species"))]
-summaryPlot <- allspeciesdatanew[,.(NofPlot = length(unique(PlotID)), NofTree = length(unique(uniTreeID)),
+summaryPlot <- allspeciesdatanew[Species!="Other",.(NofPlot = length(unique(PlotID)), NofTree = length(unique(uniTreeID)),
                                     NofObs = length(IniBA)), by = Species]
 summaryPlot[, Species:=c("All species", "Jack pine", "Trembling aspen",
-                         "Black spruce", "Minor species")]
+                         "Black spruce")]
 summaryPlot[,legendTexts:=paste(Species, ": ", NofPlot, " plots, ", NofTree, " trees, ",
                                 NofObs, " observations.", sep = "")]
 
-FigureS1_b <- ggplot(data = figureS1_bData, aes(x = Year, y = NofTree))+
+FigureS1_b <- ggplot(data = figureS1_bData[Species != "Other species"], aes(x = Year, y = NofTree))+
   geom_line(aes(group = Species, col = Species), size = 1)+
   scale_y_continuous(name = "Number of tree", limits = c(0, 30000), breaks = seq(0, 20000, by = 5000))+
   scale_x_continuous(name = "Year", limits = c(1985, 2012), breaks = seq(1985, 2011, by = 5))+
-  scale_color_manual(name = "Species", values = c("red", "blue", "green", "black", "pink"),
+  scale_color_manual(name = "Species", values = c("red", "blue", "green", "pink"),
                      labels = summaryPlot$legendTexts)+
-  guides(colour  = guide_legend(nrow = 3))+
+  guides(colour  = guide_legend(nrow = 2))+
   annotate("text", x = 1985, y = 30000, label = "b", size = 10)+
   theme_bw()+
   theme(panel.grid.major = element_blank(),
