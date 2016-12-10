@@ -51,4 +51,4 @@ allFixedCoeff <- lapply(bestModels, function(x){
                                                              conR2 = r.squaredGLMM(x)[2])]})
 rm(bestFormu, bestModel, getIC, getICformFomula, indispecies, mixedModelSelection, 
    speciesData, tempoutput)
-save.image(file.path(workPath, "Results", "finalYearModels.RData"))
+save.image(file.path(workPath, "data", "finalYearModels.RData"))
