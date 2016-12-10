@@ -261,8 +261,6 @@ figure <- ggplot(data = allFigureData[Direction != "mainTrend"], aes(x = Year, y
         legend.position = c(0.20, 0.85),
         legend.text = element_text(size = 13),
         legend.title = element_text(size = 15))
-
-
 dev(4)
 clearPlot()
 ggsave(file = file.path(workPath, "TablesFigures", "Figure 3. temporal trends by competition.png"),
