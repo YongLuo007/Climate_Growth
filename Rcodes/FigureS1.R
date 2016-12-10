@@ -62,7 +62,7 @@ FigureS1_a <- ggplot(data = subFigureS1, aes(x = Year, y = newPlotID))+
 majorspecies <- c("JP", "TA", "BS")
 allspeciesdatanew <- data.table::copy(allspeciesdata)
 allspeciesdatanew[!(Species %in% majorspecies), Species:="Other"]
-allspeciesdatanew <- rbindlist(list(copy(allspeciesdatanew)[,Species:="All"],
+allspeciesdatanew <- rbindlist(list(data.table::copy(allspeciesdatanew)[,Species:="All"],
                                     allspeciesdatanew))
 NofTreeData <- allspeciesdatanew[,.(NofTree=length(unique(uniTreeID)),
                                  IniYear = min(IniYear),
@@ -80,7 +80,7 @@ figureS1_bData[,Species:=factor(Species, levels = c("All", "JP", "TA", "BS", "Ot
 summaryPlot <- allspeciesdatanew[,.(NofPlot = length(unique(PlotID)), NofTree = length(unique(uniTreeID)),
                                     NofObs = length(IniBA)), by = Species]
 summaryPlot[, Species:=c("All species", "Jack pine", "Trembling aspen",
-                         "Black spruce", "Other species")]
+                         "Black spruce", "Minor species")]
 summaryPlot[,legendTexts:=paste(Species, ": ", NofPlot, " plots, ", NofTree, " trees, ",
                                 NofObs, " observations.", sep = "")]
 
