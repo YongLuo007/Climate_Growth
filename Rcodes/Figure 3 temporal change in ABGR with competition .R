@@ -3,7 +3,7 @@ rm(list = ls())
 library(data.table); library(ggplot2); library(SpaDES)
 library(nlme); library(dplyr);library(MuMIn);library(gridExtra)
 workPath <- "~/GitHub/Climate_Growth"
-load(file.path(workPath, "Results", "finalYearModels.RData"))
+load(file.path(workPath, "data", "finalYearModels.RData"))
 ##### for overall temporal trends and its dependency on DBH and RBI
 for(i in 1:length(allFixedCoeff)){
   indicoeff <- allFixedCoeff[[i]]
@@ -16,7 +16,7 @@ for(i in 1:length(allFixedCoeff)){
 }
 allcoeff[, variable:= unlist(lapply(lapply(lapply((rn), function(x) unlist(strsplit(x, ":"))), function(y) sort(y)),
                                     function(z) paste(z, collapse = ":")))]
-unique(allcoeff$variable)
+# unique(allcoeff$variable)
 allcoeff[variable == "logDBHctd:Yearctd", Direction:="changewithDBH"]
 allcoeff[variable == "logSActd:Yearctc", Direction:="changewithSA"]
 allcoeff[variable == "logIntraHctd:Yearctd", Direction:="changewithIntraH"]
@@ -164,10 +164,10 @@ for(indispecies in studySpecies){
     
   }
 }
-
-
-output[,':='(Species = factor(Species, levels = c("All species", "Jack pine", "Trembling aspen",
-                                                  "Black spruce", "Other species")))]
+output <- output[Species != "All species",]
+output[Species == "Other species", Species:="Minor species"]
+fourspecies <- c("Jack pine", "Trembling aspen", "Black spruce", "Minor species")
+output[,':='(Species = factor(Species, fourspecies))]
 plotFigure <- "CompetitionOnly"
 if(plotFigure == "CompetitionOnly"){
   directions <- c("mainTrend", "changewithIntraH", "changewithInterH")
@@ -181,20 +181,29 @@ allFigureData[, ':='(Direction = factor(Direction, levels = directions),
                      CompetitionIntensity = factor(CompetitionIntensity, 
                                                    levels = c("Strong", "Medium", "Weak")))]
 
-segmenttable <- data.table(Species = "All species", 
+segmenttable <- data.table(Species = "Jack pine", 
                            Direction = directions,
-                           x = -Inf, xend = -Inf, y = -Inf, yend = Inf)
-segmenttable2 <- data.table(expand.grid(Species = factor(c("All species", "Jack pine", "Trembling aspen",
-                                                           "Black spruce", "Other species")),
-                                        Direction = directions))
-segmenttable <- rbind(segmenttable, segmenttable2[,':='(x = -Inf, xend = Inf, y = -Inf, yend = -Inf)])
+                           x = -Inf, xend = -Inf,yend = Inf)
+
+segmenttable2 <- data.table(expand.grid(Species = factor(fourspecies),
+                                        Direction = factor(directions, levels = directions)))
+segmenttable2[,':='(x = -Inf, xend = Inf)]
+segmenttable2[Direction == "mainTrend", ':='(yend = 0.134)]
+segmenttable2[Direction == "changewithIntraH", ':='(yend = 0.001)]
+segmenttable2[Direction == "changewithInterH", ':='(yend = 0.026)]
+
+segmenttable <- rbind(segmenttable, segmenttable2)
+segmenttable[Direction == "mainTrend", ':='(y = 0.134)]
+segmenttable[Direction == "changewithIntraH", ':='(y = 0.001)]
+segmenttable[Direction == "changewithInterH", ':='(y = 0.026)]
+
+
 segmenttable[,':='(Species = factor(Species, 
-                                    levels = c("All species", "Jack pine", "Trembling aspen",
-                                                        "Black spruce", "Other species")),
+                                    levels = fourspecies),
                    Direction = factor(Direction, 
                                       levels = directions))]
 
-texttable <- data.table(Species = "All species", 
+texttable <- data.table(Species = "Jack pine", 
                         Direction = directions,
                         x = 1989, y = Inf, 
                         texts = letters[1:length(directions)])
@@ -204,12 +213,19 @@ texttable <- data.table(Species = "All species",
 #                               Direction = "changewithIntraH",
 #                               x = 1989, y = Inf, texts = " "))
 texttable[,':='(Species = factor(Species, 
-                                 levels = studySpecies),
+                                 levels = fourspecies),
                 Direction = factor(Direction, 
                                    levels = directions))]
+controPoints <- data.table(expand.grid(Direction = factor(c("mainTrend", "changewithInterH"),
+                                                          levels = directions),
+                                       PredictedABGR = c(0.026, 0.134, 0.687)))
+controPoints[,':='(Species = factor("Jack pine", levels = fourspecies),
+                           Year = 1995)]
+controPoints <- controPoints[PredictedABGR != 0.026 | Direction != "mainTrend",]
 
 figure <- ggplot(data = allFigureData[Direction != "mainTrend"], aes(x = Year, y = PredictedABGR))+
-  facet_grid(Direction~Species, scales = "free_y", drop = FALSE)+
+  facet_grid(Direction~Species, scale = "free_y",  drop = FALSE)+
+  geom_point(data = controPoints, aes(x = Year, y = PredictedABGR), col = "white")+
   geom_line(aes(group = CompetitionIntensity, col = CompetitionIntensity), 
             size = 1)+
   geom_ribbon(data = allFigureData[Direction == "mainTrend", ], 
@@ -221,18 +237,20 @@ figure <- ggplot(data = allFigureData[Direction != "mainTrend"], aes(x = Year, y
             col = "black", size = 1)+
   # geom_line(aes(group = CompetitionIntensity, y = PredictedABGR_Lower, col = CompetitionIntensity), linetype = 2)+
   # geom_line(aes(group = CompetitionIntensity, y = PredictedABGR_Upper, col = CompetitionIntensity), linetype = 2)+
-  scale_y_continuous(name = expression(paste("Aboveground biomass growth rate (Kg ", year^{-1}, ")")))+
+  scale_y_log10(name = expression(paste("Aboveground biomass growth rate (Kg ", year^{-1}, ")")),
+                breaks = c(0.001, 0.005, 0.026, 0.134, 0.687, 3.516, 18))+
   scale_x_continuous(name = "Year", breaks = seq(1990, 2010, by = 5))+
   scale_color_manual(name = "Competition intensity", values = c("blue", "black", "magenta"),
                      labels = c("Strong", "Medium strong", "Weak"))+
   guides(col = guide_legend(title.position = "top",
                             direction = "horizontal"))+
   geom_segment(data = segmenttable, aes(x = x, xend = xend, y = y, yend = yend), size = 1)+
-  geom_text(data = texttable, aes(x = x, y = y, label = texts), vjust = 1.5, size = 10)+
+  geom_text(data = texttable, aes(x = x, y = y, label = texts), vjust = 1, size = 10)+
   theme_bw()+
   theme(panel.grid.major = element_blank(),
         panel.grid.minor = element_blank(),
         panel.border = element_blank(),
+        # panel.margin = unit(0, "line"),
         # axis.line.x = element_line(size = 1, colour = "black"),
         # axis.line.y = element_line(size = 1, colour = "black"),
         axis.text = element_text(size = 13),
@@ -248,8 +266,7 @@ figure <- ggplot(data = allFigureData[Direction != "mainTrend"], aes(x = Year, y
 
 dev(4)
 clearPlot()
-
-ggsave(file = file.path(workPath, "TablesFigures", "Figure 3_temporal trends by competition.png"),
+ggsave(file = file.path(workPath, "TablesFigures", "Figure 3. temporal trends by competition.png"),
        figure,  width = 12, height = 8)
 
 
