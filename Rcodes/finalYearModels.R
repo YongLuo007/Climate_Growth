@@ -23,12 +23,12 @@ for(indispecies in studySpecies){
                                     ICTerm = "AIC",
                                     ICCut = 2,
                                     data = speciesData,
-                                    random = ~1|PlotID/uniTreeID, 
+                                    random = ~1|PlotID, 
                                     control = lmeControl(opt="optim", maxIter=50000, msMaxIter = 50000))
   bestFormu <- as.formula(paste("logY~", paste(tempoutput$bestIDV, collapse = "+")))
   bestModel <- lme(fixed = bestFormu,
                    data = speciesData,
-                   random = ~1+Yearctd|PlotID/uniTreeID, 
+                   random = ~1|PlotID, 
                    control = lmeControl(opt="optim", maxIter=50000, msMaxIter = 50000))
   
   cat("Species", indispecies, "is done. \n")
