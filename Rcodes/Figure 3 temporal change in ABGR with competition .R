@@ -24,6 +24,7 @@ allcoeff[variable == "logInterHctd:Yearctd", Direction:="changewithInterH"]
 output <- data.table(Species = character(), Direction = character(), Year = numeric(),
                      CompetitionIntensity = character(), PredictedABGR = numeric(),
                      PredictedABGR_Lower = numeric(), PredictedABGR_Upper = numeric())
+studySpecies <- studySpecies[2:4]
 for(indispecies in studySpecies){
   speciesData <- analysesData[DataType == indispecies,]
   speciecoeff <- allcoeff[Species == indispecies, ]
@@ -164,10 +165,8 @@ for(indispecies in studySpecies){
     
   }
 }
-output <- output[Species != "All species",]
-output[Species == "Other species", Species:="Minor species"]
-fourspecies <- c("Jack pine", "Trembling aspen", "Black spruce", "Minor species")
-output[,':='(Species = factor(Species, fourspecies))]
+majorspecies <- c("Jack pine", "Trembling aspen", "Black spruce")
+output[,':='(Species = factor(Species, majorspecies))]
 plotFigure <- "CompetitionOnly"
 if(plotFigure == "CompetitionOnly"){
   directions <- c("mainTrend", "changewithIntraH", "changewithInterH")
@@ -185,7 +184,7 @@ segmenttable <- data.table(Species = "Jack pine",
                            Direction = directions,
                            x = -Inf, xend = -Inf,yend = Inf)
 
-segmenttable2 <- data.table(expand.grid(Species = factor(fourspecies),
+segmenttable2 <- data.table(expand.grid(Species = factor(majorspecies),
                                         Direction = factor(directions, levels = directions)))
 segmenttable2[,':='(x = -Inf, xend = Inf)]
 segmenttable2[Direction == "mainTrend", ':='(yend = 0.134)]
@@ -199,7 +198,7 @@ segmenttable[Direction == "changewithInterH", ':='(y = 0.026)]
 
 
 segmenttable[,':='(Species = factor(Species, 
-                                    levels = fourspecies),
+                                    levels = majorspecies),
                    Direction = factor(Direction, 
                                       levels = directions))]
 
@@ -213,13 +212,13 @@ texttable <- data.table(Species = "Jack pine",
 #                               Direction = "changewithIntraH",
 #                               x = 1989, y = Inf, texts = " "))
 texttable[,':='(Species = factor(Species, 
-                                 levels = fourspecies),
+                                 levels = majorspecies),
                 Direction = factor(Direction, 
                                    levels = directions))]
 controPoints <- data.table(expand.grid(Direction = factor(c("mainTrend", "changewithInterH"),
                                                           levels = directions),
                                        PredictedABGR = c(0.026, 0.134, 0.687)))
-controPoints[,':='(Species = factor("Jack pine", levels = fourspecies),
+controPoints[,':='(Species = factor("Jack pine", levels = majorspecies),
                            Year = 1995)]
 controPoints <- controPoints[PredictedABGR != 0.026 | Direction != "mainTrend",]
 
