@@ -89,7 +89,7 @@ if(firstRun){
                                            importanceLower=importanceLower*100,
                                            importanceUpper=importanceUpper*100), 
                                         by = c("Species", "Group")]
-
+  
   write.csv(newimportanceTable, file.path(workPath, "Results", "importanceTable.csv"), row.names = F)
 } else {
   newimportanceTable <- read.csv(file.path(workPath, "Results", "importanceTable.csv"), header = TRUE,
@@ -98,9 +98,9 @@ if(firstRun){
 newimportanceTable <- newimportanceTable[Species != "All species",]
 
 newimportanceTable[,':='(Species = factor(Species,
-                                          levels = c("Jack pine", 
-                                                     "Trembling aspen", "Black spruce", 
-                                                     "Other species")),
+                                          levels = c("Jack pine", "Other species",
+                                                     "Trembling aspen",
+                                                     "Black spruce")),
                          Group = factor(Group,levels = c("Ontogeny", "Competition",
                                                          "Ontogeny+Competition", "Climate", 
                                                          "Competition+Climate", "Ontogeny+Climate"),
@@ -109,26 +109,25 @@ newimportanceTable[,':='(Species = factor(Species,
                                                    "Year×Competition",
                                                    "Year×Ontogeny")))]
 subtitles <- data.table(x = 6, y = -2, 
-                        Species = factor(c("Jack pine", 
-                                           "Trembling aspen", "Black spruce", 
-                                           "Other species"), 
-                                         levels=c("All species", " ", "Jack pine", 
-                                                  "Trembling aspen", "Black spruce", 
-                                                  "Other species")),
-                        labels = c("a", "b", "c", "d"))
+                        Species = factor(c("Jack pine",
+                                           "Trembling aspen", 
+                                           "Black spruce"),
+                                         levels = c("Jack pine", "Other species",
+                                                    "Trembling aspen",
+                                                    "Black spruce")),
+                        labels = c("a", "b", "c"))
 
 segmentstable <- rbind(c(-Inf, Inf, -Inf, -Inf),
                        c(-Inf, -Inf, -Inf, Inf))
-segmentstable <- data.frame(rbind(segmentstable, segmentstable, segmentstable,
+segmentstable <- data.frame(rbind(segmentstable, segmentstable,
                                   segmentstable))
 names(segmentstable) <- c("x", "xend", "y", "yend")
 segmentstable$Species <- factor(sort(rep(c("Jack pine", 
-                                           "Trembling aspen", "Black spruce", 
-                                           "Other species"), 2)),
-                                levels=c("Jack pine", 
-                                         "Trembling aspen", "Black spruce", 
-                                         "Other species"))
-for(i in 2:length(allFixedCoeff)){
+                                           "Trembling aspen",
+                                           "Black spruce"), 2)),
+                                levels=c("Jack pine", "Other species",
+                                         "Trembling aspen", "Black spruce"))
+for(i in 2:4){
   label1 <- data.table(Species = names(allFixedCoeff[i]), 
                        marR2 = paste("Marginal~R^2==", round(allFixedCoeff[[i]]$marR2[1], 2)),
                        conR2 = paste("Conditional~R^2==", round(allFixedCoeff[[i]]$conR2[1], 2)))
@@ -139,10 +138,10 @@ for(i in 2:length(allFixedCoeff)){
   }
 }
 labelAll[, ':='(y = 8, xmar = 3.6, xcon = 3)]
-labelAll[, Species := factor(Species, levels = c("Jack pine", 
-                                                 "Trembling aspen", "Black spruce", 
-                                                 "Other species"))]
-importanceFigure <- ggplot(data = newimportanceTable,
+labelAll[, Species := factor(Species, levels = c("Jack pine", "Other species",
+                                                 "Trembling aspen",
+                                                 "Black spruce"))]
+importanceFigure <- ggplot(data = newimportanceTable[Species != "Other species"],
                            aes(x = Group, y = importance))+
   geom_bar(aes(col = Group, fill = Group), stat = 'identity')+
   geom_errorbar(aes(ymin = importanceLower, ymax = importanceUpper), col = "gray", width = 0.25)+
@@ -159,15 +158,16 @@ importanceFigure <- ggplot(data = newimportanceTable,
             size = 5, parse = TRUE, hjust = 0)+
   geom_text(data = labelAll, aes(x = xcon, y = y, label = conR2), 
             size = 5, parse = TRUE, hjust = 0)+
-  facet_wrap(~Species, ncol = 2, drop = TRUE)+
+  facet_wrap(~Species, ncol = 2, drop = FALSE)+
   scale_fill_manual(name = "Predictor group", values = c("cyan", "darkgreen", "darkblue", 
                                                          "purple", "goldenrod", "brown"),
                     labels = c("Ontogeny", "Competition",
-                                                                           "Ontogeny\n×Competition", "Year", 
-                                                                           "Year\n×Competition",
-                                                                           "Year\n×Ontogeny"))+
+                               "Ontogeny\n×Competition", "Year", 
+                               "Year\n×Competition",
+                               "Year\n×Ontogeny"))+
   scale_color_manual(guide = "none", values = c("cyan", "darkgreen", "darkblue", 
                                                 "purple", "goldenrod", "brown"))+
+  guides(guide_legend(nrow = 3))+ 
   coord_flip()+
   theme_bw()+
   theme(panel.grid = element_blank(),
@@ -178,9 +178,9 @@ importanceFigure <- ggplot(data = newimportanceTable,
         axis.text.x = element_text(size = 12),
         axis.ticks.y = element_blank(),
         legend.key.height = unit(1.5, "lines"),
-        legend.title = element_blank(),
+        legend.title = element_text(13),
         legend.text = element_text(size = 10),
-        legend.position = c(0.92, 0.16),
+        legend.position = c(0.8, 0.8),
         legend.background = element_rect(colour = "black"),
         strip.text = element_blank())
 
