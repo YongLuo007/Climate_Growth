@@ -28,9 +28,9 @@ temperature <- c("ATA", "GSTA", "NONGSTA")
 CMI <- c("ACMIA", "GSCMIA")
 CO2 <- c("ACO2A")
 longcol <- c(temperature, CMI, CO2)
-fourspecies <- c("Jack pine", "Trembling aspen", "Black spruce", "Other species")
+majorspecies <- c("Jack pine", "Trembling aspen", "Black spruce")
 m <- 1
-for(indispecies in fourspecies){
+for(indispecies in majorspecies){
   
   speciesData <- analysesData[DataType == indispecies,]
   
@@ -97,7 +97,7 @@ alloutput1 <- alloutput1[is.na(interactEff),':='(interactEff = 0,
 alloutput1[,':='(Effect = mainEffect+Competitionctd*interactEff, 
                  Effect_SE = sqrt(mainEffect_SE^2+interactEff_SE^2))]
 alloutput1[xscale %in% c(2, 5, 8, 11), ':='(Effect = mainEffect, 
-                                                 Effect_SE = mainEffect_SE)]
+                                            Effect_SE = mainEffect_SE)]
 climateWithCompTable <- data.table::copy(alloutput1)
 climateWithCompTable[Climate %in% c("ATA", "ACMIA", "ACO2A") & CompetitionName == "IntraH",
                      SeasonComp:="WholeIntraH"]
@@ -119,9 +119,7 @@ climateWithCompTable[, SeasonComp:=factor(SeasonComp,
                                                      "GSIntraH", "GSInterH", 
                                                      "NGSIntraH", "NGSInterH"))]
 
-climateWithCompTable[,':='(Species = factor(Species, levels = c("Jack pine", "Trembling aspen",
-                                                                "Black spruce", "Other species"),
-                                            labels = c(fourspecies[1:3], "Minor species")))]
+climateWithCompTable[,':='(Species = factor(Species, levels = majorspecies))]
 
 climateWithCompTable[Climate %in% c("ATA", "GSTA", "NONGSTA"), ClimateName:="Temperature"]
 climateWithCompTable[Climate %in% c("ACMIA", "GSCMIA", "NONGSCMIA"), ClimateName:="CMI"]
@@ -132,15 +130,13 @@ climateWithCompTable[, ClimateName:=factor(ClimateName, levels = c("Temperature"
 
 startPoints <- climateWithCompTable[xscale %in% c(1, 4, 7, 10),][, ':='(x = xscale+1)]
 endPoints <- climateWithCompTable[xscale %in% c(3, 6, 9, 12), ][, .(Species, Climate, CompetitionName, 
-                                                                         xend = xscale-1, 
-                                                                         Effectend = Effect, Effectend_SE = Effect_SE)]
+                                                                    xend = xscale-1, 
+                                                                    Effectend = Effect, Effectend_SE = Effect_SE)]
 segmentPoints <- setkey(startPoints, Species, Climate, CompetitionName)[setkey(endPoints, Species, Climate, CompetitionName), 
                                                                         nomatch = 0]
-segmentPoints[,':='(Species = factor(Species, levels = c("Jack pine", "Trembling aspen",
-                                                         "Black spruce", "Minor species")))]
+segmentPoints[,':='(Species = factor(Species, levels = majorspecies))]
 mainEffect <- climateWithCompTable[xscale %in% c(2, 5, 8, 11) & mainEffect != 0,][,':='(x = xscale)]
-mainEffect[,':='(Species = factor(Species, levels = c("Jack pine", "Trembling aspen",
-                                                         "Black spruce", "Minor species")))]
+mainEffect[,':='(Species = factor(Species, levels = majorspecies))]
 
 newlabels1 <- list("Temperature" = "Temperature effect",
                    "CMI" = "CMI effect",
@@ -167,8 +163,8 @@ majorYpanelbreaklines <- data.table(SeasonComp = factor(c("WholeIntraH", "GSIntr
                                     x = -Inf, xend = -Inf, y = -Inf, yend = Inf)
 
 majorXpanelbreaklines <- data.table(ClimateName = factor(c("CO2"),
-                                                        levels = c("Temperature", "CMI", 
-                                                                   "CO2")),
+                                                         levels = c("Temperature", "CMI", 
+                                                                    "CO2")),
                                     x = Inf, xend = -Inf, y = -Inf, yend = -Inf)
 a <- unique(segmentPoints[,.(SeasonComp, ClimateName)],
             by = c("SeasonComp", "ClimateName"))
@@ -177,10 +173,10 @@ labeltexts <- data.table(ClimateName = factor("Temperature",
                                               levels = c("Temperature", "CMI", 
                                                          "CO2")), 
                          SeasonComp = factor(c("WholeIntraH", 
-                                        "GSIntraH", "NGSIntraH"),
-                                        levels = c("WholeIntraH", "WholeInterH", 
-                                                   "GSIntraH", "GSInterH", 
-                                                   "NGSIntraH", "NGSInterH")),
+                                               "GSIntraH", "NGSIntraH"),
+                                             levels = c("WholeIntraH", "WholeInterH", 
+                                                        "GSIntraH", "GSInterH", 
+                                                        "NGSIntraH", "NGSInterH")),
                          labels = letters[1:3],
                          x = 0.5, y = Inf)
 
@@ -227,7 +223,7 @@ FigureB <- ggplot(data = segmentPoints[Effect != Effectend, ], aes(x = x, y = Ef
         strip.text.y = element_text(size = 15),
         strip.text.x = element_text(size = 15, vjust = -2))
 ggsave(file.path(workPath, "TablesFigures",
-                 "Figure 5. Climate associations with tree growth.png"), FigureB,
+                 "Figure 4. Climate associations with tree growth.png"), FigureB,
        width = 10, height = 7)
 
 
