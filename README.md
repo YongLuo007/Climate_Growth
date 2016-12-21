@@ -9,7 +9,7 @@ You will need to get the orginal data from Yong Luo. The data were not put into 
 The data were selected using 
 
 ```r
-source(file.patch(".", "Rcodes", "MBdataselection.R"))
+source(file.path(".", "Rcodes", "MBdataselection.R"))
 ```
 
 The independent variables (IDVs) were incorporated into the data using
