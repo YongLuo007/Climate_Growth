@@ -118,9 +118,9 @@ $(document).ready(function () {
 </div>
 
 
-<div id="climate-tree-growth-relationship" class="section level1">
-<h1>Climate-tree growth relationship</h1>
-<p>Examine how climate change affected tree growth</p>
+<div id="competition-mediates-climate-change-tree-growth-relationship" class="section level1">
+<h1>Competition mediates climate change-tree growth relationship</h1>
+<p>Examine the role of competition in expressing climate change-tree growth relationship</p>
 <div id="data" class="section level2">
 <h2>Data</h2>
 <p>You will need to get the orginal data from Yong Luo. The data were not put into repo for two reasons: 1. data size is too large to upload; 2. restriction of data usage</p>
@@ -128,24 +128,37 @@ $(document).ready(function () {
 <div id="data-preparation" class="section level2">
 <h2>Data preparation</h2>
 <p>The data were selected using</p>
-<pre class="r"><code>source(file.patch(&quot;.&quot;, &quot;Rcodes&quot;, &quot;MBdataselection.R&quot;))</code></pre>
+<pre class="r"><code>source(file.path(&quot;.&quot;, &quot;Rcodes&quot;, &quot;MBdataselection.R&quot;))</code></pre>
 <p>The independent variables (IDVs) were incorporated into the data using</p>
 <pre class="r"><code>source(file.path(&quot;.&quot;, &quot;Rcodes&quot;, &quot;IDV preparation.R&quot;))</code></pre>
-<p>The Hegyi index were derived from <code>HeghyiCICalculationModified.R</code> in Rfunctions folder. The climate anomalies is in data folder, and derived from BioSIM</p>
+<p>The Hegyi index were derived from <code>HeghyiCICalculationModified.R</code> in Rfunctions folder. The climate anomalies that derived from BioSIM is in data folder.</p>
 </div>
 <div id="data-analyses" class="section level2">
 <h2>Data analyses</h2>
 <div id="examine-temporal-trends-of-tree-growth" class="section level3">
 <h3>Examine temporal trends of tree growth</h3>
-<p>For each species among Jack pine, Trembling aspen and Black spruce, mixed models that account for both random slope and random intercept had been developed using <code>lme</code> function in <code>nlme</code> package.</p>
+<p>For each species among Jack pine, Trembling aspen and Black spruce, mixed models that account for random intercept had been developed using <code>lme</code> function in <code>nlme</code> package. In the model selection process, the backward model selection based on AIC approach was used. The process was implemented using <code>mixedModelSelection.R</code></p>
+<pre class="r"><code>source(file.path(&quot;.&quot;, &quot;Rcodes&quot;, &quot;BestYearModels.R&quot;))</code></pre>
 <p>For each species, a best model was determined based on smallest AIC and was considered as the final model that was reported in the results.</p>
 </div>
 <div id="examine-climate-changes-and-their-associations-with-tree-growth" class="section level3">
 <h3>Examine climate changes and their associations with tree growth</h3>
+<p>Follow the same procedure as best Year models, the best climate models that used specific climate anomalies had been implemented.</p>
+<pre class="r"><code>source(file.path(&quot;.&quot;, &quot;Rcodes&quot;, &quot;BestClimateModels.R&quot;))</code></pre>
+<p>For detecting regrional climate changes, mixed models were used. The results and figure can be produced using following codes:</p>
+<pre class="r"><code>source(file.path(&quot;.&quot;, &quot;Rcodes&quot;, &quot;Figure S4 regional climate changes.R&quot;))</code></pre>
 </div>
 </div>
 <div id="tables-and-figures-presentations" class="section level2">
 <h2>Tables and figures presentations</h2>
+<p>To visualize study area and regional climate changes, the following codes were used.</p>
+<pre class="r"><code>source(file.path(&quot;.&quot;, &quot;Rcodes&quot;, &quot;Figure 1 plot locations.R&quot;))</code></pre>
+<p>To calculate the relative importance of predictors in best Year models,</p>
+<pre class="r"><code>source(file.path(&quot;.&quot;, &quot;Rcodes&quot;, &quot;RelativeImportance.R&quot;))</code></pre>
+<p>To produce temporal trends in tree growth</p>
+<pre class="r"><code>source(file.path(&quot;.&quot;, &quot;Rcodes&quot;, &quot;Figure 3 temporal change in ABGR with competition.R&quot;))</code></pre>
+<p>To present the climate change associations with tree growth,</p>
+<pre class="r"><code>source(file.path(&quot;.&quot;, &quot;Rcodes&quot;, &quot;Figure 4 ClimateGrowthRelationships.R&quot;))</code></pre>
 </div>
 </div>
 
