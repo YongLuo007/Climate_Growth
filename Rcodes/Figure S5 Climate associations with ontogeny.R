@@ -2,9 +2,9 @@ rm(list = ls())
 library(data.table); library(ggplot2); library(SpaDES)
 library(nlme); library(dplyr);library(MuMIn)
 workPath <- "~/GitHub/Climate_Growth"
-load(file.path(workPath, "data", "ClimateModelSelection.RData"))
-rm(speciesData, indispecies, fullthemodel, i, indiclimate, newSigNIDV, reducedFormu,
-   reducedModel, signIDV)
+load(file.path(workPath, "data", "ClimateModelSelection168Plots.RData"))
+analysesData[,SA := IniFA+2.5]
+
 
 for(i in 1:length(allFixedCoeff)){
   modelName <- unlist(strsplit(names(allFixedCoeff)[i], "_", fixed = T))
@@ -28,11 +28,11 @@ temperature <- c("ATA", "GSTA", "NONGSTA")
 CMI <- c("ACMIA", "GSCMIA")
 CO2 <- c("ACO2A")
 longcol <- c(temperature, CMI, CO2)
-fourspecies <- c("Jack pine", "Trembling aspen", "Black spruce", "Other species")
+fourspecies <- c("Jack pine", "Trembling aspen", "Black spruce")
 m <- 1
 for(indispecies in fourspecies){
   
-  speciesData <- analysesData[DataType == indispecies,]
+  speciesData <- analysesData[Species == indispecies,]
   
   climateWithClimateTable <- rbind(data.table(expand.grid(Species = indispecies,
                                                           Climate = as.character(longcol), 
@@ -119,9 +119,7 @@ climateWithCompTable[, SeasonComp:=factor(SeasonComp,
                                                      "GSDBH", "GSSA", 
                                                      "NGSDBH", "NGSSA"))]
 
-climateWithCompTable[,':='(Species = factor(Species, levels = c("Jack pine", "Trembling aspen",
-                                                                "Black spruce", "Other species"),
-                                            labels = c(fourspecies[1:3], "Minor species")))]
+climateWithCompTable[,':='(Species = factor(Species, levels = fourspecies))]
 
 climateWithCompTable[Climate %in% c("ATA", "GSTA", "NONGSTA"), ClimateName:="Temperature"]
 climateWithCompTable[Climate %in% c("ACMIA", "GSCMIA", "NONGSCMIA"), ClimateName:="CMI"]
@@ -137,10 +135,10 @@ endPoints <- climateWithCompTable[xscale %in% c(3, 6, 9, 12), ][, .(Species, Cli
 segmentPoints <- setkey(startPoints, Species, Climate, OntogenyName)[setkey(endPoints, Species, Climate, OntogenyName), 
                                                                         nomatch = 0]
 segmentPoints[,':='(Species = factor(Species, levels = c("Jack pine", "Trembling aspen",
-                                                         "Black spruce", "Minor species")))]
+                                                         "Black spruce")))]
 mainEffect <- climateWithCompTable[xscale %in% c(2, 5, 8, 11) & mainEffect != 0,][,':='(x = xscale)]
 mainEffect[,':='(Species = factor(Species, levels = c("Jack pine", "Trembling aspen",
-                                                      "Black spruce", "Minor species")))]
+                                                      "Black spruce")))]
 
 
 newlabels1 <- list("Temperature" = "Temperature effect",

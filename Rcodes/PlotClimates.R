@@ -7,17 +7,17 @@ if(as.character(Sys.info()[6]) == "yonluo"){
   workPath <- "J:/MBgrowth"
 }
 
-inputData <- read.csv(file.path(workPath, "plotsummary.csv"), header = TRUE,
+inputData <- read.csv(file.path(workPath, "data", "plotsummary.csv"), header = TRUE,
                       stringsAsFactors = FALSE) %>%
   data.table
-climateData <- read.csv(file.path(workPath, "StudyAreaClimates_BiomSIM", "plotMonthlyClimates.csv"),
+climateData <- read.csv(file.path(workPath, "data", "StudyAreaClimates_BiomSIM", "plotMonthlyClimates.csv"),
                         header = TRUE, stringsAsFactors = FALSE) %>% data.table
 
 names(climateData) <- c("PlotID", "Year_Month", "Temp", "Prep", "PET")
 
-climateData[,':='(Year = as.numeric(unlist(lapply(strsplit(Year_Month, "/", fixed = TRUE), function(x){x[[1]]}))),
-                  Month = as.numeric(unlist(lapply(strsplit(Year_Month, "/", fixed = TRUE), function(x){x[[2]]}))))]
-CO2data <- read.csv(file.path(workPath, "StudyAreaClimates_BiomSIM", "CO2.csv"),
+climateData[,':='(Year = as.numeric(unlist(lapply(Year_Month, function(x) unlist(strsplit(x, "/", fixed = T))[1]))),
+                  Month = as.numeric(unlist(lapply(Year_Month, function(x) unlist(strsplit(x, "/", fixed = T))[2]))))]
+CO2data <- read.csv(file.path(workPath, "data", "StudyAreaClimates_BiomSIM", "CO2.csv"),
                         header = TRUE, stringsAsFactors = FALSE) %>% data.table
 
 climateData <- setkey(climateData, Year, Month)[setkey(CO2data[,.(Year, Month, CO2)], Year, Month),
@@ -78,11 +78,10 @@ write.csv(inputData, file.path(workPath, "data", "plotclimates.csv"), row.names=
 workPath <- "~/GitHub/Climate_Growth"
 analysesData <- read.csv(file.path(workPath, "data", "newAllDataRescaledComp.csv"), header = TRUE,
                          stringsAsFactors = FALSE) %>% data.table
-set(analysesData, ,c("ATA", "GSTA", "NONGSTA",
-                  "APA", "GSPA", "NONGSPA",
-                  "ACMIA", "GSCMIA", "NONGSCMIA",
-                  "ACO2A", "GSCO2A", "NONGSCO2A"), NULL)
+
 thedata <- setkey(analysesData, PlotID, IniYear, FinYear)[setkey(inputData, PlotID, IniYear, FinYear),
                                                      nomatch = 0]
+
+write.csv(thedata, file.path(workPath, "data", "newAllDataRescaledComp.csv"), row.names = FALSE)
 
 

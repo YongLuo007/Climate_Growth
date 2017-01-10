@@ -3,8 +3,9 @@ rm(list = ls())
 library(data.table); library(ggplot2); library(SpaDES)
 library(nlme); library(dplyr);library(MuMIn);library(gridExtra)
 workPath <- "~/GitHub/Climate_Growth"
-load(file.path(workPath, "data", "finalYearModels.RData"))
+load(file.path(workPath, "data", "finalYearModels168plotsAllCensusPositiveTrees.RData"))
 ##### for overall temporal trends and its dependency on DBH and RBI
+analysesData[,SA:=IniFA+2.5]
 for(i in 1:length(allFixedCoeff)){
   indicoeff <- allFixedCoeff[[i]]
   indicoeff[,Species:=names(allFixedCoeff[i])]
@@ -25,7 +26,7 @@ output <- data.table(Species = character(), Direction = character(), Year = nume
                      CompetitionIntensity = character(), PredictedABGR = numeric(),
                      PredictedABGR_Lower = numeric(), PredictedABGR_Upper = numeric())
 for(indispecies in studySpecies){
-  speciesData <- analysesData[DataType == indispecies,]
+  speciesData <- analysesData[Species == indispecies,]
   speciecoeff <- allcoeff[Species == indispecies, ]
   bestFormu <- bestFomula[[indispecies]]
   themodel <- bestModels[[indispecies]]
@@ -168,6 +169,7 @@ for(indispecies in studySpecies){
 
 output[,':='(Species = factor(Species, levels = c("All species", "Jack pine", "Trembling aspen",
                                                   "Black spruce", "Other species")))]
+output <- output[Species != "Other species",]
 plotFigure <- "OntogenyOnly"
 if(plotFigure == "CompetitionOnly"){
   directions <- c("mainTrend", "changewithIntraH", "changewithInterH")
@@ -185,12 +187,12 @@ segmenttable <- data.table(Species = "Jack pine",
                            Direction = directions,
                            x = -Inf, xend = -Inf, y = -Inf, yend = Inf)
 segmenttable2 <- data.table(expand.grid(Species = factor(c("Jack pine", "Trembling aspen",
-                                                           "Black spruce", "Other species")),
+                                                           "Black spruce")),
                                         Direction = directions))
 segmenttable <- rbind(segmenttable, segmenttable2[,':='(x = -Inf, xend = Inf, y = -Inf, yend = -Inf)])
 segmenttable[,':='(Species = factor(Species, 
                                     levels = c("Jack pine", "Trembling aspen",
-                                               "Black spruce", "Other species")),
+                                               "Black spruce")),
                    Direction = factor(Direction, 
                                       levels = directions))]
 
@@ -207,14 +209,17 @@ texttable[,':='(Species = factor(Species,
                                  levels = studySpecies),
                 Direction = factor(Direction, 
                                    levels = directions))]
-legendTableb <- texttable[Direction == "changewithSA",.(Species, Direction, x = 1998,
+legendTableb <- texttable[Direction == "changewithSA",.(Species = factor("Black spruce", levels = studySpecies[1:3]),
+                                                        Direction, x = 1998,
                                                         y = c(3.2, 2.9, 2.6),
                                                         texts = c("Maximum", "Medium",
                                                                   "Minimum"))]
 legendTablebLine <- legendTableb[,.(Species, Direction, x = 1995, xend = 1997, y, yend = y)]
-legendTablebTitle <- texttable[Direction == "changewithSA", .(Species, Direction, x = 1995,
+legendTablebTitle <- texttable[Direction == "changewithSA", .(Species = factor("Black spruce", levels = studySpecies[1:3]),
+                                                              Direction, x = 1995,
                                                               y = 3.5, texts = "Stand age (SA)")]
-legendTablebRect <- texttable[Direction == "changewithSA", .(Species, Direction, Year = 1994, xmax = 2009,
+legendTablebRect <- texttable[Direction == "changewithSA", .(Species = factor("Black spruce", levels = studySpecies[1:3]),
+                                                             Direction, Year = 1994, xmax = 2009,
                                                              PredictedABGR = 2.38, ymax = 3.65)]
 figure <- ggplot(data = allFigureData[Direction != "mainTrend"], aes(x = Year, y = PredictedABGR))+
   facet_grid(Direction~Species, scales = "free_y")+
@@ -241,19 +246,20 @@ figure <- ggplot(data = allFigureData[Direction != "mainTrend"], aes(x = Year, y
         panel.border = element_blank(),
         # axis.line.x = element_line(size = 1, colour = "black"),
         # axis.line.y = element_line(size = 1, colour = "black"),
-        axis.text = element_text(size = 13),
+        axis.text.y = element_text(size = 13),
+        axis.text.x = element_text(size = 13, angle = 45, hjust = 1),
         axis.title = element_text(size = 16),
         strip.text.y = element_blank(),
         strip.background = element_rect(colour = "white"),
         strip.text.x = element_text(size = 15),
         legend.background = element_rect(colour = "black"),
         legend.key = element_rect(colour = "white"),
-        legend.position = c(0.20, 0.85),
+        legend.position = c(0.23, 0.80),
         legend.text = element_text(size = 13),
         legend.title = element_text(size = 15))
 
 ggsave(file = file.path(workPath, "TablesFigures", "Figure S3. temporal trends by ontogeny.png"),
-       figure,  width = 12, height = 8)
+       figure,  width = 12.5, height = 8)
 
 
 

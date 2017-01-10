@@ -4,12 +4,14 @@ library(parallel)
 workPath <- "~/GitHub/Climate_Growth"
 analysesData <- read.csv(file.path(workPath, "data", "newAllDataRescaledComp.csv"), header = TRUE,
                          stringsAsFactors = FALSE) %>% data.table
-analysesData <- analysesData[allCensusLiveTree == "yes" & positiveGrowthTree == "yes",]
+# analysesData[,':='(minGrowth=min(BiomassGR), treeMeasureTime=length(IniDBH)), by = uniTreeID]
+analysesData <- analysesData[allCensusLiveTree == "yes",]
+
 studySpecies <- c("Jack pine", "Trembling aspen", "Black spruce", "Other species")
 source(file.path(workPath, "Rcodes", "Rfunctions", "mixedModelSelection.R"))
 for(indispecies in studySpecies){
   speciesData <- analysesData[Species == indispecies,]
-  speciesData[,':='(logY = log(BiomassGR), 
+  speciesData[,':='(logY = log(BiomassGR+50), 
                     logDBHctd = log(IniDBH)-mean(log(IniDBH)), 
                     Yearctd = Year-mean(Year),
                     logIntraHctd = log(IntraH+1)-mean(log(IntraH+1)),
@@ -50,4 +52,4 @@ allFixedCoeff <- lapply(bestModels, function(x){
                                                              conR2 = r.squaredGLMM(x)[2])]})
 rm(bestFormu, bestModel, getIC, getICformFomula, indispecies, mixedModelSelection, 
    speciesData, tempoutput)
-save.image(file.path(workPath, "data", "finalYearModels168plotsAllCensusPositiveTrees.RData"))
+save.image(file.path(workPath, "data", "finalYearModels168plotsAllcensusTrees.RData"))

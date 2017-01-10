@@ -4,7 +4,8 @@ library(MuMIn)
 workPath <- "~/GitHub/Climate_Growth"
 analysesData <- read.csv(file.path(workPath, "data", "newAllDataRescaledComp.csv"), header = TRUE,
                          stringsAsFactors = FALSE) %>% data.table
-studySpecies <- c("All species", "Jack pine", "Trembling aspen", "Black spruce", "Other species")
+analysesData <- analysesData[allCensusLiveTree == "yes" & positiveGrowthTree == "yes",]
+studySpecies <- c("Jack pine", "Trembling aspen", "Black spruce", "Other species")
 source(file.path(workPath, "Rcodes", "Rfunctions", "mixedModelSelection.R"))
 bestClimateModels <- list()
 
@@ -12,7 +13,7 @@ climates <- c("ATA", "GSTA", "NONGSTA",
               "ACMIA", "GSCMIA", 
               "ACO2A")
 for(indispecies in studySpecies){
-  speciesData <- analysesData[DataType == indispecies,]
+  speciesData <- analysesData[Species == indispecies,]
   for(indiclimate in climates){
     speciesData$climate <- c(speciesData[, indiclimate, with = FALSE])
     speciesData[,':='(logY = log(BiomassGR), 
@@ -20,7 +21,7 @@ for(indispecies in studySpecies){
                       Climatectd = climate-mean(climate),
                       logIntraHctd = log(IntraH+1)-mean(log(IntraH+1)),
                       logInterHctd = log(InterH+1)-mean(log(InterH+1)),
-                      logSActd = log(SA)-mean(log(SA)))]
+                      logSActd = log(IniFA+2.5)-mean(log(IniFA+2.5)))]
     tempoutput <- mixedModelSelection(DV = "logY", 
                                       IDV = c("logDBHctd", "Climatectd", 
                                               "logIntraHctd", "logInterHctd",
@@ -38,7 +39,7 @@ for(indispecies in studySpecies){
     bestClimateModels[[paste(indispecies, "_", indiclimate, sep = "")]] <- thebestmodel
     cat("Species", indispecies, "and climate", indiclimate, "is done. \n")
     
-    if(indispecies == "All species" & indiclimate == "ATA"){
+    if(indispecies == "Jack pine" & indiclimate == "ATA"){
       modelSelectionSummaries <- tempoutput$modelSummary[, ':='(Species = indispecies, Climate = indiclimate)]
       bestIDVs <- list(tempoutput$bestIDV)
       names(bestIDVs) <- paste(indispecies, "_", indiclimate, sep = "")
@@ -53,4 +54,4 @@ allFixedCoeff <- lapply(bestClimateModels, function(x){
   data.table(summary(x)$tTable, keep.rownames = TRUE)[, ':='(marR2 = r.squaredGLMM(x)[1],
                                                              conR2 = r.squaredGLMM(x)[2])]})
 
-save.image(file.path(workPath, "data", "ClimateModelSelection.RData"))
+save.image(file.path(workPath, "data", "ClimateModelSelection168Plots.RData"))

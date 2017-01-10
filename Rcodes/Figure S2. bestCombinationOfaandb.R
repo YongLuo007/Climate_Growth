@@ -5,24 +5,21 @@ library(SpaDES); library(MuMIn);library(parallel)
 rm(list = ls())
 output <- read.csv(file.path("~/GitHub/Climate_Growth/Results/bestWeightsbothsizeanddistanceRescaled.csv"),
                    header = T, stringsAsFactors = F) %>% data.table
-output <- output[Species != "All",]
+output <- output[Species != "Other species",]
 
 a <- melt(output, id.vars = c("Species", "sizeWeight", "disweight"), 
           measure.vars = c("IntraHAIC", "InterHAIC"),
           value.name = "Value")
 a[,':='(variable = factor(variable, levels = c("IntraHAIC", "InterHAIC"),
                           labels = c("Intraspecific competition", "Interspecific competition")),
-        Species = factor(Species, levels = c("JP", "TA", "BS", "Other"),
-                         labels = c("Jack pine", "Trembling aspen", "Black spruce",
-                                    "Minor species")))]
+        Species = factor(Species, levels = c("Jack pine", "Trembling aspen", "Black spruce")))]
 
 a[,':='(minvalue=min(Value), maxvalue = max(Value)), by = c("Species", "variable")]
 a[, scaledValue:=(Value-minvalue)/(maxvalue-minvalue)]
 cutpoints <- c(0, seq(0.05, 0.95, by = 0.1), 1)
 
 minvaluepoints <- a[Value == minvalue,]
-rectTable <- data.table(expand.grid(Species = c("Jack pine", "Trembling aspen", "Black spruce",
-                                                "Minor species"),
+rectTable <- data.table(expand.grid(Species = c("Jack pine", "Trembling aspen", "Black spruce"),
                                     variable = c("Intraspecific competition", "Interspecific competition")))
 rectTable[,':='(disweight = 1.3, xend = 2, sizeWeight = 0, yend = 1.5)]
 alphaTable <- data.table::copy(minvaluepoints)[,':='(disweight = 1.4, alpha = paste("alpha==", sizeWeight))]
@@ -45,7 +42,7 @@ figure <- ggplot(data=a, aes(x = disweight, y = sizeWeight))+
   geom_text(data = betaTable, 
           aes(x = disweight, y = sizeWeight, label = alpha),
           hjust = 0, size = 6, parse = TRUE)+
-  scale_y_continuous(name = expression(paste("Assymetric competition coefficient (", alpha, ")")))+
+  scale_y_continuous(name = expression(paste("Cross-forests assymetric competition coefficient (", alpha, ")")))+
   scale_x_continuous(name = expression(paste("Crowdedness competition coefficient (", beta, ")")))+
   scale_fill_continuous(name = "Scaled AIC", breaks = c(0, 1))+
   theme_bw()+

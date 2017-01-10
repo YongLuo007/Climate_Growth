@@ -3,7 +3,7 @@ rm(list = ls())
 library(data.table); library(ggplot2); library(SpaDES)
 library(nlme); library(dplyr);library(MuMIn);library(gridExtra)
 workPath <- "~/GitHub/Climate_Growth"
-load(file.path(workPath, "data", "finalYearModels.RData"))
+load(file.path(workPath, "data", "finalYearModels168plotsAllCensusPositiveTrees.RData"))
 ##### for overall temporal trends and its dependency on DBH and RBI
 for(i in 1:length(allFixedCoeff)){
   indicoeff <- allFixedCoeff[[i]]
@@ -24,9 +24,9 @@ allcoeff[variable == "logInterHctd:Yearctd", Direction:="changewithInterH"]
 output <- data.table(Species = character(), Direction = character(), Year = numeric(),
                      CompetitionIntensity = character(), PredictedABGR = numeric(),
                      PredictedABGR_Lower = numeric(), PredictedABGR_Upper = numeric())
-studySpecies <- studySpecies[2:4]
+studySpecies <- studySpecies[1:3]
 for(indispecies in studySpecies){
-  speciesData <- analysesData[DataType == indispecies,]
+  speciesData <- analysesData[Species == indispecies,]
   speciecoeff <- allcoeff[Species == indispecies, ]
   bestFormu <- bestFomula[[indispecies]]
   themodel <- bestModels[[indispecies]]
@@ -176,34 +176,41 @@ if(plotFigure == "CompetitionOnly"){
   directions <- c("mainTrend", "changewithIntraH", "changewithInterH", "changewithDBH", "changewithSA")
 }
 allFigureData <- data.table::copy(output)[Direction %in% directions, ]
-allFigureData[, ':='(Direction = factor(Direction, levels = directions),
+allFigureData <- allFigureData[Species %in% majorspecies,]
+allFigureData[Direction == "changewithIntraH" & CompetitionIntensity == "Weak", 
+              Direction:="changewithIntraHweak"]
+allFigureData[Direction == "mainTrend", CompetitionIntensity:="mainTrend"]
+allFigureData <- allFigureData[CompetitionIntensity != "Medium", ]
+
+allFigureData[, ':='(Direction = factor(Direction, 
+                                        levels = c("mainTrend", "changewithIntraHweak",
+                                                   "changewithIntraH", "changewithInterH")),
                      CompetitionIntensity = factor(CompetitionIntensity, 
-                                                   levels = c("Strong", "Medium", "Weak")))]
+                                                   levels = c("Weak", "Strong")))]
 
 segmenttable <- data.table(Species = "Jack pine", 
-                           Direction = directions,
-                           x = -Inf, xend = -Inf,yend = Inf)
+                           Direction = c("mainTrend", "changewithIntraHweak",
+                                         "changewithIntraH", "changewithInterH"),
+                           x = -Inf, xend = -Inf, y = -Inf, yend = Inf)
 
 segmenttable2 <- data.table(expand.grid(Species = factor(majorspecies),
                                         Direction = factor(directions, levels = directions)))
-segmenttable2[,':='(x = -Inf, xend = Inf)]
-segmenttable2[Direction == "mainTrend", ':='(yend = 0.134)]
-segmenttable2[Direction == "changewithIntraH", ':='(yend = 0.001)]
-segmenttable2[Direction == "changewithInterH", ':='(yend = 0.026)]
+segmenttable2[,':='(x = -Inf, xend = Inf, y = -Inf, yend = -Inf)]
+
 
 segmenttable <- rbind(segmenttable, segmenttable2)
-segmenttable[Direction == "mainTrend", ':='(y = 0.134)]
-segmenttable[Direction == "changewithIntraH", ':='(y = 0.001)]
-segmenttable[Direction == "changewithInterH", ':='(y = 0.026)]
+
 
 
 segmenttable[,':='(Species = factor(Species, 
                                     levels = majorspecies),
                    Direction = factor(Direction, 
-                                      levels = directions))]
+                                      levels = c("mainTrend", "changewithIntraHweak",
+                                                 "changewithIntraH", "changewithInterH")))]
 
 texttable <- data.table(Species = "Jack pine", 
-                        Direction = directions,
+                        Direction = c("mainTrend", "changewithIntraHweak",
+                                      "changewithInterH"),
                         x = 1989, y = Inf, 
                         texts = letters[1:length(directions)])
 # texttable <- rbind(texttable, 
@@ -214,51 +221,41 @@ texttable <- data.table(Species = "Jack pine",
 texttable[,':='(Species = factor(Species, 
                                  levels = majorspecies),
                 Direction = factor(Direction, 
-                                   levels = directions))]
-controPoints <- data.table(expand.grid(Direction = factor(c("mainTrend", "changewithInterH"),
-                                                          levels = directions),
-                                       PredictedABGR = c(0.026, 0.134, 0.687)))
-controPoints[,':='(Species = factor("Jack pine", levels = majorspecies),
-                           Year = 1995)]
-controPoints <- controPoints[PredictedABGR != 0.026 | Direction != "mainTrend",]
-
+                                   levels = c("mainTrend", "changewithIntraHweak",
+                                              "changewithIntraH", "changewithInterH")))]
 figure <- ggplot(data = allFigureData[Direction != "mainTrend"], aes(x = Year, y = PredictedABGR))+
   facet_grid(Direction~Species, scale = "free_y",  drop = FALSE)+
-  geom_point(data = controPoints, aes(x = Year, y = PredictedABGR), col = "white")+
+  geom_ribbon(aes(group = CompetitionIntensity, fill = CompetitionIntensity,
+                  ymin = PredictedABGR_Lower, 
+                  ymax = PredictedABGR_Upper), col = "white", alpha = 0.2)+
   geom_line(aes(group = CompetitionIntensity, col = CompetitionIntensity), 
             size = 1)+
   geom_ribbon(data = allFigureData[Direction == "mainTrend", ], 
               aes (x = Year, ymin = PredictedABGR_Lower, 
                    ymax = PredictedABGR_Upper),
-            fill = "gray", alpha = 0.5)+
+            fill = "gray", alpha = 0.2)+
   geom_line(data = allFigureData[Direction == "mainTrend", ], 
             aes (x = Year, y = PredictedABGR),
             col = "black", size = 1)+
-  # geom_line(aes(group = CompetitionIntensity, y = PredictedABGR_Lower, col = CompetitionIntensity), linetype = 2)+
-  # geom_line(aes(group = CompetitionIntensity, y = PredictedABGR_Upper, col = CompetitionIntensity), linetype = 2)+
-  scale_y_log10(name = expression(paste("Aboveground biomass growth rate (Kg ", year^{-1}, ")")),
-                breaks = c(0.001, 0.005, 0.026, 0.134, 0.687, 3.516, 18))+
+  scale_y_continuous(name = expression(paste("Aboveground biomass growth rate (Kg ", year^{-1}, ")")))+
   scale_x_continuous(name = "Year", breaks = seq(1990, 2010, by = 5))+
-  scale_color_manual(name = "Competition intensity", values = c("blue", "black", "magenta"),
-                     labels = c("Strong", "Medium strong", "Weak"))+
-  guides(col = guide_legend(title.position = "top",
-                            direction = "horizontal"))+
+  scale_color_manual(name = "Competition intensity", values = c("blue", "magenta"),
+                     labels = c("Weak", "Strong"))+
+  scale_fill_manual(name = "Competition intensity", values = c("blue", "magenta"),
+                     labels = c("Weak", "Strong"))+
   geom_segment(data = segmenttable, aes(x = x, xend = xend, y = y, yend = yend), size = 1)+
   geom_text(data = texttable, aes(x = x, y = y, label = texts), vjust = 1, size = 10)+
   theme_bw()+
   theme(panel.grid.major = element_blank(),
         panel.grid.minor = element_blank(),
         panel.border = element_blank(),
-        # panel.margin = unit(0, "line"),
-        # axis.line.x = element_line(size = 1, colour = "black"),
-        # axis.line.y = element_line(size = 1, colour = "black"),
         axis.text = element_text(size = 13),
         axis.title = element_text(size = 16),
         strip.text.y = element_blank(),
         strip.background = element_rect(colour = "white"),
         strip.text.x = element_text(size = 15),
         legend.background = element_rect(colour = "black"),
-        legend.position = c(0.20, 0.85),
+        legend.position = c(0.17, 0.15),
         legend.text = element_text(size = 13),
         legend.title = element_text(size = 15))
 dev(4)

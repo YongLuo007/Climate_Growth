@@ -1,27 +1,18 @@
 rm(list = ls())
 library(data.table); library(ggplot2); library(SpaDES)
 library(nlme); library(dplyr);library(MuMIn);library(raster)
-if(as.character(Sys.info()[6]) == "yonluo"){
-  workPath <- "F:/MBgrowth"
-} else {
-  workPath <- "J:/MBgrowth"
-}
+workPath <- "~/GitHub/Climate_Growth"
 
-
-inputData <- read.csv(file.path(workPath, "MBdataSimplified.csv"), header = TRUE,
-                      stringsAsFactors = FALSE) %>%
-  data.table
-masterTable <- read.csv(file.path(workPath, "masterTable.csv"),
+masterTable <- read.csv(file.path(workPath, "data", "selectedPlotMasterTable.csv"),
                         header = TRUE, stringsAsFactors = FALSE) %>%
   data.table
 
-masterTable <- masterTable[PlotID %in% unique(inputData$PlotID),]
 source("~/GitHub/landwebNRV/landwebNRV/R/UTMtoLongLat.R")
 
 locationData <- unique(masterTable[,.(PlotID, Easting, Northing, Zone = 14)], by = "PlotID")
 locationData <- UTMtoLongLat(UTMTable = locationData)
 locationData <- locationData$Transformed
-demraster <- raster(file.path(workPath, "MBDEM.tif"))
+demraster <- raster(file.path(workPath, "data", "StudyAreaClimates_BiomSIM", "MBDEM.tif"))
 locationGeoPoint <- SpatialPointsDataFrame(coords = data.frame(locationData[,.(Longitude, Latitude)]),
                                            data = data.frame(locationData[,.(PlotID)]),
                                            proj4string = CRS("+proj=longlat"),

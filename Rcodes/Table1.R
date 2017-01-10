@@ -7,15 +7,15 @@ workPath <- "~/GitHub/Climate_Growth"
 analysesData <- read.csv(file.path(workPath, "data", "newAllDataRescaledComp.csv"), header = TRUE,
                          stringsAsFactors = FALSE) %>%
   data.table
-
-studySpecies <- c("All species", "Jack pine", "Trembling aspen",
+analysesData <- analysesData[allCensusLiveTree == "yes" & positiveGrowthTree == "yes",]
+studySpecies <- c("Jack pine", "Trembling aspen",
                   "Black spruce", "Other species")
 
 for(indispecies in studySpecies){
-  speciesdata <- analysesData[DataType == indispecies,.(PlotID, uniTreeID, ABGR = BiomassGR,
+  speciesdata <- analysesData[Species == indispecies,.(PlotID, uniTreeID, ABGR = BiomassGR,
                                                         logABGR = log(BiomassGR), 
                                                          DBH = IniDBH, logDBH = log(IniDBH),
-                                                        SA, logSA = log(SA),
+                                                        SA = IniFA+2.5, logSA = log(IniFA+2.5),
                                                         Year, IntraH, logIntraH = log(IntraH+1),
                                                         InterH, logInterH = log(InterH+1), 
                                                          ATA, GSTA, NONGSTA,
@@ -45,7 +45,7 @@ for(indispecies in studySpecies){
   
   speciesdata <- speciesdata[,.(tempV, Variable, summary)]
   names(speciesdata)[3] <- indispecies
-  if(indispecies == "All species"){
+  if(indispecies == "Jack pine"){
     Table1Output <- speciesdata
     rm(speciesdata)
   } else {

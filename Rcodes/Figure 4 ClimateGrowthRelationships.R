@@ -2,7 +2,7 @@ rm(list = ls())
 library(data.table); library(ggplot2); library(SpaDES)
 library(nlme); library(dplyr);library(MuMIn)
 workPath <- "~/GitHub/Climate_Growth"
-load(file.path(workPath, "data", "ClimateModelSelection.RData"))
+load(file.path(workPath, "data", "ClimateModelSelection168Plots.RData"))
 rm(speciesData, indispecies, fullthemodel, i, indiclimate, newSigNIDV, reducedFormu,
    reducedModel, signIDV)
 
@@ -31,8 +31,7 @@ longcol <- c(temperature, CMI, CO2)
 majorspecies <- c("Jack pine", "Trembling aspen", "Black spruce")
 m <- 1
 for(indispecies in majorspecies){
-  
-  speciesData <- analysesData[DataType == indispecies,]
+  speciesData <- analysesData[Species == indispecies,]
   
   climateWithClimateTable <- rbind(data.table(expand.grid(Species = indispecies,
                                                           Climate = as.character(longcol), 
@@ -156,29 +155,36 @@ figure_labeller <- function(variable,value){
     return(newlabels2[value])
   } 
 }
-majorYpanelbreaklines <- data.table(SeasonComp = factor(c("WholeIntraH", "GSIntraH", "NGSIntraH"),
+majorYpanelbreaklines <- data.table(SeasonComp = factor(c("WholeIntraH"),
                                                         levels = c("WholeIntraH", "WholeInterH", 
                                                                    "GSIntraH", "GSInterH", 
                                                                    "NGSIntraH", "NGSInterH")),
                                     x = -Inf, xend = -Inf, y = -Inf, yend = Inf)
 
-majorXpanelbreaklines <- data.table(ClimateName = factor(c("CO2"),
-                                                         levels = c("Temperature", "CMI", 
-                                                                    "CO2")),
-                                    x = Inf, xend = -Inf, y = -Inf, yend = -Inf)
+majorXpanelbreaklines <- data.table(x = Inf, xend = -Inf, y = -Inf, yend = -Inf)
 a <- unique(segmentPoints[,.(SeasonComp, ClimateName)],
             by = c("SeasonComp", "ClimateName"))
 a[,':='(x = -1, xend = Inf, Effect = 0, yend = 0)]
-labeltexts <- data.table(ClimateName = factor("Temperature",
+labeltexts <- data.table(ClimateName = factor(c("Temperature", "CMI", "CO2"),
                                               levels = c("Temperature", "CMI", 
                                                          "CO2")), 
-                         SeasonComp = factor(c("WholeIntraH", 
-                                               "GSIntraH", "NGSIntraH"),
+                         SeasonComp = factor(c("WholeIntraH"),
                                              levels = c("WholeIntraH", "WholeInterH", 
                                                         "GSIntraH", "GSInterH", 
                                                         "NGSIntraH", "NGSInterH")),
                          labels = letters[1:3],
                          x = 0.5, y = Inf)
+seasontexts <- data.table(ClimateName = factor(c("Temperature"),
+                                               levels = c("Temperature", "CMI", 
+                                                          "CO2")), 
+                          SeasonComp = factor(c("WholeIntraH", "GSIntraH", "NGSIntraH"),
+                                              levels = c("WholeIntraH", "WholeInterH", 
+                                                         "GSIntraH", "GSInterH", 
+                                                         "NGSIntraH", "NGSInterH")),
+                          labels = c("Annual anomaly", "Growing season anomaly",
+                                     "Non-growing season anomaly"),
+                          x = 2, y = Inf)
+
 
 FigureB <- ggplot(data = segmentPoints[Effect != Effectend, ], aes(x = x, y = Effect))+
   facet_grid(ClimateName~SeasonComp,
@@ -189,12 +195,12 @@ FigureB <- ggplot(data = segmentPoints[Effect != Effectend, ], aes(x = x, y = Ef
   geom_segment(data = a, aes(x = x, xend = xend, 
                              y = Effect, yend = yend), linetype = 2, col = "gray", size = 1)+
   geom_errorbar(aes(group = Species, ymin = Effect-1.98*Effect_SE, ymax = Effect+1.98*Effect_SE), 
-                width = 2, col = "gray", size = 1)+
+                width = 1.5, col = "gray", size = 1)+
   geom_errorbar(aes(group = Species, ymin = Effectend-1.98*Effectend_SE, ymax = Effectend+1.98*Effectend_SE), 
-                width = 2, col = "gray", size = 1)+
+                width = 1.5, col = "gray", size = 1)+
   geom_errorbar(data = mainEffect[interactEff == 0, ], aes(x = x, ymin = mainEffect-mainEffect_SE, 
                                                            ymax = mainEffect+mainEffect_SE, group = Species),
-                col = "gray", width = 2, size = 1)+
+                col = "gray", width = 1.5, size = 1)+
   geom_segment(aes(group = Species, col = Species, xend = xend, yend = Effectend), 
                arrow = arrow(length = unit(0.1, "npc")), size = 1)+
   geom_segment(data = majorYpanelbreaklines, aes(x = x, xend = xend, y = y, yend = yend), 
@@ -222,10 +228,39 @@ FigureB <- ggplot(data = segmentPoints[Effect != Effectend, ], aes(x = x, y = Ef
         strip.background = element_rect(colour = "white", fill = "white"),
         strip.text.y = element_text(size = 15),
         strip.text.x = element_text(size = 15, vjust = -2))
+
+
 ggsave(file.path(workPath, "TablesFigures",
                  "Figure 4. Climate associations with tree growth.png"), FigureB,
        width = 10, height = 7)
 
+library(png);library(grid); library(gridExtra)
+img <- readPNG(file.path(workPath, "TablesFigures",
+                         "Figure 4. Climate associations with tree growth.png"))
+g <- rasterGrob(img)
+g$width <- unit(1, "npc")
+g$height <- unit(1, "npc")
+start <- 0.24
+dis <- 0.3
+figureC <- ggplot(data = data.frame(x = c(0, 1), y = c(0, 1)),
+                  aes(x = x, y = y))+
+  annotation_custom(g, xmin = 0, xmax = 1, ymin = 0, ymax = 1)+
+  geom_text(data = data.frame(x = c(start, start+dis, start+2*dis), y = 1, 
+                              texts = c("Annual anomaly", "Growing season anomaly", "Non-growing season anomaly")),
+            aes(x = x, y = y, label = texts), size = 5)+
+  
+  theme(panel.grid = element_blank(),
+        panel.border = element_blank(),
+        axis.text = element_blank(),
+        axis.ticks = element_blank(),
+        axis.title = element_blank(),
+        panel.background = element_blank(),
+        plot.background = element_blank(),
+        plot.margin = margin(-10,-25,-25,-25),
+        panel.margin = margin(0,0,0,0))
 
+ggsave(file.path(workPath, "TablesFigures",
+                 "Figure 4. Climate associations with tree growth.png"), figureC,
+       width = 10, height = 7)
 
 

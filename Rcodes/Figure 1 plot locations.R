@@ -28,15 +28,10 @@ row.names(df) <- 1
 boreal <- SpatialPolygonsDataFrame(boreal, data = df)
 
 
-locations <- read.csv(file.path(workPath, "data", "masterTable.csv"),
+locations <- read.csv(file.path(workPath, "data", "selectedPlotMasterTable.csv"),
                       header = TRUE,
                       stringsAsFactors = FALSE) %>%
   data.table
-workingData <- read.csv(file.path(workPath, "data", "MBdatafinal.csv"),
-                        header = TRUE,
-                        stringsAsFactors = FALSE) %>%
-  data.table
-locations <- locations[PlotID %in% unique(workingData$PlotID),]
 
 locations <- locations[,.(PlotID, Easting, Northing)] %>%
   unique(., by = "PlotID")
@@ -107,9 +102,9 @@ Figure1a <- ggplot(data = canadamapall, aes(x = long, y = lat)) +
   geom_path(aes(group = group), col = "white", size = 1)+
   geom_line(data = coordReferenceFinal, aes(x = long, y = lat, group = line),
             colour = "gray", linetype = 2)+
-  geom_point(data = MBlocation,
-             aes(x = MBlocation$Easting, y = MBlocation$Northing), col = "blue",
-             pch = 1, size = 1.5)+
+  # geom_point(data = MBlocation,
+  #            aes(x = MBlocation$Easting, y = MBlocation$Northing), col = "blue",
+  #            pch = 1, size = 1.5)+
   geom_polygon(data = studyAreaall, aes(x = long, y = lat, group = group), col = "red", 
                alpha = 0, linetype = 2, size = 1)+
   geom_text(data = coordReferenceLabels, aes(x = long, y = lat, label = labels))+
@@ -186,8 +181,11 @@ AnnualCMIRaster_p$CMIClass <- cut(AnnualCMIRaster_p$CMI, breaks = cutpoints2,
 Figure1b <- ggplot(data = AnnualTRaster_p, aes(x = long, y = lat))+
   geom_raster(aes(fill = Temperature))+
   scale_fill_gradient2(name = expression(atop("Annual \ntemperature \ntrend", 
-                                         paste("(", degree, "C yea",r^{-1}, ")"))), low = "red", high = "blue")+
+                                         paste("(", degree, "C yea",r^{-1}, ")"))), low = "yellow", high = "red")+
   guides(fill = guide_colourbar(title.position = "top"))+
+  geom_point(data = MBlocation,
+             aes(x = MBlocation$Easting, y = MBlocation$Northing), col = "black",
+             pch = 3, size = 2)+
   annotate("text", label = "b", x = -Inf, y = Inf, size = 8, vjust = 1.5, hjust = -1)+
   theme_bw()+
   theme(panel.grid.major = element_blank(),
@@ -207,6 +205,9 @@ Figure1c <- ggplot(data = AnnualCMIRaster_p, aes(x = long, y = lat))+
                                               paste("(mm yea",r^{-1}, ")"))),
                        low = "red", high = "blue")+
   guides(fill = guide_colourbar(title.position = "top"))+
+  geom_point(data = MBlocation,
+             aes(x = MBlocation$Easting, y = MBlocation$Northing), col = "black",
+             pch = 3, size = 2)+
   annotate("text", label = "c", x = -Inf, y = Inf, size = 8, vjust = 1.5, hjust = -1)+
   theme_bw()+
   theme(panel.grid.major = element_blank(),

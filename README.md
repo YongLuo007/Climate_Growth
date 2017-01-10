@@ -17,19 +17,13 @@ The independent variables (IDVs) were incorporated into the data using
 ```r
 source(file.path(".", "Rcodes", "IDV preparation.R"))
 ```
-For Hegyi index, a CItable(in data folder) had been prepared using function `HeghyiCICalculation.R` in Rfunctions folder.
-The climate anomalies is in data folder
-
-## Data inspection
-The data was inspected for the normality of depedendt variable (visually check), linearity between dependent variable and independent variables (visually check), and variance inflaction factor (VIF).
-
-
-The inspection was processed using `dataInspection.R`. The VIF was checked using method proposed by Zuur, A.F., et al. (2010)
+The Hegyi index were derived from  `HeghyiCICalculationModified.R` in Rfunctions folder.
+The climate anomalies that derived from BioSIM is in data folder.
 
 ## Data analyses
 
 ### Examine temporal trends of tree growth
-For each species among Jack pine, Trembling aspen and Black spruce, mixed models that account for both random slope and random intercept had been developed using `lme` function in `nlme` package.
+For each species among Jack pine, Trembling aspen and Black spruce, mixed models that account for random intercept had been developed using `lme` function in `nlme` package.
 
 
 For each species, a best model was determined based on smallest AIC and was considered as the final model that was reported in the results.

@@ -6,16 +6,11 @@ if(as.character(Sys.info()[6]) == "yonluo"){
 } else {
   workPath <- file.path("", "home", "yonluo","Climate_Growth")
 }
-load(file.path(workPath, "data", "MBPSP.RData"))
-names(allPSP) <- c("PlotID", "FMU", "TWP", "RGE", "PlotNumber",
-                   "StandType", "StructureType", "VegeType",
-                   "SStructure", "Moist", "YearEstabish", "Easting",
-                   "Northing", "TreeNumber", "Species", "Distance",
-                   "Angle", "DBH", "Height", "Status", "Class",
-                   "TreeAge", "Year", "PlotSize")
-inputData <- data.table::copy(allPSP)
+inputData <- read.csv(file.path(workPath, "data", "forcompetitionIndex.csv"), header = TRUE,
+                      stringsAsFactors = FALSE) %>% data.table
 analysesData <- read.csv(file.path(workPath, "data", "MBdatafinal.csv"), header = TRUE,
                          stringsAsFactors = FALSE) %>% data.table
+analysesData <- analysesData[BiomassGR>0,]
 inputData <- inputData[PlotID %in% unique(analysesData$PlotID),]
 
 inputData[Species == "AS",species:="black spruce"]
@@ -49,7 +44,7 @@ inputData[Species == "WS",species:="white spruce"]
 inputData[is.na(species), species:="unknown"]
 
 inputData <- inputData[Status == 1 | Status == 0,]
-source(file.path(workPath, "Rcodes",  "biomassCalculation.R"))
+source(file.path(workPath, "Rcodes",  "Rfunctions", "biomassCalculation.R"))
 inputData$Biomass <- biomassCalculation(species = inputData$species,
                                         DBH = inputData$DBH)
 source(file.path(workPath, "Rcodes", "Rfunctions", "HeghyiCICalculationModified.R"))
@@ -57,12 +52,10 @@ inputData[PlotID == "46-132", Distance:=Distance/100]
 CIcompetitionData <- inputData[!is.na(Distance),]
 CIcompetitionData <- CIcompetitionData[,.(PlotNumber = PlotID, TreeNumber = TreeNumber,
                                           Year, Distance, Angle, DBH, Species, Biomass)]
-set(analysesData, , c("H_DBH", "IntraH_DBH", "InterH_DBH", 
-                      "H_Biomass", "IntraH_Biomass", "InterH_Biomass", "IntraH1_3", 
-                      "InterH0_4", "H"), NULL)
-firstRun <- TRUE
+
+firstRun <- FALSE
 if(firstRun){
-  sizeWeight <-  seq(5.1, 8, by = 0.1)
+  sizeWeight <-  seq(0, 8, by = 0.1)
   disweight  <-  seq(0, 2, by = 0.1)
   processCIdata <- data.table::copy(CIcompetitionData)
   CIdata <- HeghyiCICalculation(data = processCIdata,
@@ -92,14 +85,9 @@ if(firstRun){
       analysesDataAll <- setkey(analysesDataAll, uniTreeID, IniYear)[setkey(newCIdata, uniTreeID, IniYear),
                                                                      nomatch = 0]
       
-      for(indispecies in c("All", "JP", "TA", "BS", "Other")){
-        if(indispecies == "All"){
-          speciesData <- data.table::copy(analysesDataAll)
-        } else if(indispecies == "Other"){
-          speciesData <- analysesDataAll[!(Species %in% c("JP", "TA", "BS")),]
-        } else {
-          speciesData <- analysesDataAll[Species == indispecies,]
-        }
+      for(indispecies in c("Jack pine", "Trembling aspen", "Black spruce", "Other species")){
+        speciesData <- analysesDataAll[Species == indispecies,]
+        
         speciesData[,':='(logY = log(BiomassGR),
                           logIntraHctd = log(IntraH+1) - mean(log(IntraH+1)),
                           logInterHctd = log(InterH+1) - mean(log(InterH+1)))]
@@ -119,17 +107,12 @@ if(firstRun){
       cat("sizeWeight: ", i, "disweight: ", j, "is done. \n")  
     }
   }
-  
-  write.csv(output, file.path(workPath, "bestWeightsbothsizeanddistanceRescaled2.csv"), row.names = F)
+  write.csv(output, file.path(workPath, "Results", "bestWeightsbothsizeanddistanceRescaled.csv"), row.names = F)
   rm(i, j, output)
-  
-}
- outputadd <- read.csv(file.path(workPath, "bestWeightsbothsizeanddistanceRescaled.csv"),
-                   header = TRUE, stringsAsFactors = FALSE) %>% data.table
- output <- read.csv(file.path(workPath, "bestWeightsbothsizeanddistanceRescaled2.csv"),
+} else {
+   output <- read.csv(file.path(workPath, "Results", "bestWeightsbothsizeanddistanceRescaled.csv"),
                     header = TRUE, stringsAsFactors = FALSE) %>% data.table
- output <- rbind(outputadd, output) 
- write.csv(output, file.path(workPath, "bestWeightsbothsizeanddistanceRescaledAll.csv"), row.names = F)
+}
  rm(i, j)
  
 output <- unique(output, by = c("Species", "sizeWeight", "disweight"))

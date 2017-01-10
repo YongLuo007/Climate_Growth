@@ -1,0 +1,17 @@
+"rn","Jack pine Value","Jack pine SE","Trembling aspen Value","Trembling aspen SE","Black spruce Value","Black spruce SE","Other species Value","Other species SE"
+"(Intercept)",-0.7708,0.0683,-0.6708,0.0754,-1.7135,0.0618,-0.9956,0.0452
+"logDBH",0.6463,0.0486,1.4085,0.0559,0.5283,0.0335,1.099,0.0424
+"logSA",-1.1805,0.0487,-1.0468,0.048,-0.9386,0.0945,-0.6352,0.0937
+"Year",NA,NA,NA,NA,0.0112,0.002,-0.019,0.0026
+"logIntraH",-0.6415,0.0169,-0.3674,0.0157,-0.3366,0.0109,-0.233,0.0089
+"logInterH",NA,NA,-0.0317,0.0069,-0.1336,0.0094,-0.0904,0.0119
+"logDBH × logSA",0.7645,0.0442,NA,NA,0.1681,0.0321,NA,NA
+"logDBH × Year",NA,NA,NA,NA,-0.0142,0.0021,NA,NA
+"logDBH × logIntraH",NA,NA,-0.0515,0.0063,-0.0334,0.0044,-0.0504,0.0054
+"logDBH × logInterH",-0.1253,0.0075,NA,NA,-0.0961,0.0055,-0.0414,0.0052
+"logSA × Year",-0.0439,0.0032,-0.0557,0.0033,NA,NA,NA,NA
+"logIntraH × logSA",0.2926,0.0197,0.1048,0.0149,NA,NA,NA,NA
+"logInterH × logSA",NA,NA,0.1619,0.0136,0.242,0.0153,0.1253,0.0117
+"logIntraH × Year",-0.0227,9e-04,-0.0137,9e-04,-0.0109,8e-04,NA,NA
+"logInterH × Year",NA,NA,-0.0036,6e-04,-0.0029,5e-04,-0.0039,6e-04
+"logInterH × logIntraH",-0.0563,0.0037,NA,NA,-0.0328,0.0031,NA,NA
