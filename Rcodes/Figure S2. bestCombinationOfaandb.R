@@ -2,7 +2,6 @@ rm(list=ls())
 library(data.table);library(ggplot2); library(dplyr); library(nlme)
 library(SpaDES); library(MuMIn);library(parallel)
 
-rm(list = ls())
 output <- read.csv(file.path("~/GitHub/Climate_Growth/Results/bestWeightsbothsizeanddistanceRescaled.csv"),
                    header = T, stringsAsFactors = F) %>% data.table
 output <- output[Species != "Other species",]
@@ -21,11 +20,11 @@ cutpoints <- c(0, seq(0.05, 0.95, by = 0.1), 1)
 minvaluepoints <- a[Value == minvalue,]
 rectTable <- data.table(expand.grid(Species = c("Jack pine", "Trembling aspen", "Black spruce"),
                                     variable = c("Intraspecific competition", "Interspecific competition")))
-rectTable[,':='(disweight = 1.3, xend = 2, sizeWeight = 0, yend = 1.5)]
-alphaTable <- data.table::copy(minvaluepoints)[,':='(disweight = 1.4, alpha = paste("alpha==", sizeWeight))]
-alphaTable[, sizeWeight := 0.75]
-betaTable <- data.table::copy(minvaluepoints)[,':='(disweight = 1.7, alpha = paste("beta==", disweight))]
-betaTable[, sizeWeight := 0.75]
+rectTable[,':='(disweight = 0, xend = 0.7, sizeWeight = 6.5, yend = 8)]
+alphaTable <- data.table::copy(minvaluepoints)[,':='(disweight = 0.1, alpha = paste("alpha==", sizeWeight))]
+alphaTable[, sizeWeight := 7.25]
+betaTable <- data.table::copy(minvaluepoints)[,':='(disweight = 0.4, alpha = paste("beta==", disweight))]
+betaTable[, sizeWeight := 7.25]
 figure <- ggplot(data=a, aes(x = disweight, y = sizeWeight))+
   facet_grid(Species~variable, scales = "free_y")+
   geom_raster(aes(fill = scaledValue), interpolate = TRUE)+

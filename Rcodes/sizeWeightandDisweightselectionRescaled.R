@@ -6,189 +6,135 @@ if(as.character(Sys.info()[6]) == "yonluo"){
 } else {
   workPath <- file.path("", "home", "yonluo","Climate_Growth")
 }
-inputData <- read.csv(file.path(workPath, "data", "forcompetitionIndex.csv"), header = TRUE,
-                      stringsAsFactors = FALSE) %>% data.table
-analysesData <- read.csv(file.path(workPath, "data", "MBdatafinal.csv"), header = TRUE,
-                         stringsAsFactors = FALSE) %>% data.table
-analysesData <- analysesData[BiomassGR>0,]
-inputData <- inputData[PlotID %in% unique(analysesData$PlotID),]
+analysesData <- fread(file.path(workPath, "data", "newAllDataRescaledComp1.csv"))
+analysesData[Species == "Other species", Species := "Minor species"]
+analysesData[,TreeMT:=length(IniYear), by = c("Species", "uniTreeID")]
+analysesData <- analysesData[TreeMT>=2, ]
+analysesData <- analysesData[positiveGrowthTree == "yes",]
 
-inputData[Species == "AS",species:="black spruce"]
-# "BA"
-inputData[Species == "BA",species:="balsam poplar"]
-# "BF" 
-inputData[Species == "BF",species:="balsam fir"]
-# "BO"
-inputData[Species == "BO",species:="white oak"] # bur oak to
-# "BS"
-inputData[Species == "BS",species:="black spruce"]
-# "EC"
-inputData[Species == "EC",species:="western redcedar"] # cedar
-# "JP"
-inputData[Species == "JP",species:="jack pine"]
-# "MM"
-inputData[Species == "MM",species:="silver maple"]
-# "RP"
-inputData[Species == "RP",species:="red pine"]
-# "TA"
-inputData[Species == "TA",species:="trembling aspen"]
-# "TL"
-inputData[Species == "TL",species:="tamarack larch"]
-# "WB"
-inputData[Species == "WB",species:="white birch"]
-# "WE"
-inputData[Species == "WE",species:="white elm"]
-# "WS"
-inputData[Species == "WS",species:="white spruce"]
-# for unknownspecies
-inputData[is.na(species), species:="unknown"]
-
-inputData <- inputData[Status == 1 | Status == 0,]
-source(file.path(workPath, "Rcodes",  "Rfunctions", "biomassCalculation.R"))
-inputData$Biomass <- biomassCalculation(species = inputData$species,
-                                        DBH = inputData$DBH)
-source(file.path(workPath, "Rcodes", "Rfunctions", "HeghyiCICalculationModified.R"))
-inputData[PlotID == "46-132", Distance:=Distance/100]
-CIcompetitionData <- inputData[!is.na(Distance),]
-CIcompetitionData <- CIcompetitionData[,.(PlotNumber = PlotID, TreeNumber = TreeNumber,
-                                          Year, Distance, Angle, DBH, Species, Biomass)]
-
-firstRun <- FALSE
-if(firstRun){
-  sizeWeight <-  seq(0, 8, by = 0.1)
-  disweight  <-  seq(0, 2, by = 0.1)
-  processCIdata <- data.table::copy(CIcompetitionData)
-  CIdata <- HeghyiCICalculation(data = processCIdata,
-                                maxRadius = 12.62,
-                                sizeIndex = "Biomass",
-                                distanceWeight = disweight, 
-                                sizeWeight = sizeWeight,
-                                assymetricScale = "Rescale")
-  dd <- data.table::copy(CIdata)
-  
-  dd[, ':='(uniTreeID = paste(PlotNumber, "_", TreeNumber, sep = ""),
-            IniYear = Year)][,':='(PlotNumber = NULL, TreeNumber = NULL, Year = NULL)]
-  dd <- unique(dd, by = c("uniTreeID", "IniYear"))
-  names(dd) <- gsub("\\.", "_", names(dd))
-  
+myFunction <- function(sizeWeight, disWeight, analysesData, workPath){
   output <- data.table(Species = character(), sizeWeight = character(),
-                       disweight = numeric(), IntraHAIC = numeric(), InterHAIC = numeric())
+                       disWeight = numeric(), HAIC = numeric(), IntraHAIC = numeric(),
+                       InterHAIC = numeric())
   for(i in sizeWeight){
-    for(j in disweight){
-      newCIdata <- data.table::copy(dd)
-      analysesDataAll <- data.table::copy(analysesData)
-      indicombweight <- paste(c("H_", "IntraH_", "InterH_"), paste("DW", j, "_SW", i, sep = ""), sep = "")
-      indicombweight <- gsub("\\.", "_", indicombweight)
-      
-      setnames(newCIdata, indicombweight, c("H", "IntraH", "InterH"))
-      newCIdata <- newCIdata[,.(uniTreeID, IniYear, H, IntraH, InterH)]
-      analysesDataAll <- setkey(analysesDataAll, uniTreeID, IniYear)[setkey(newCIdata, uniTreeID, IniYear),
+    for(j in disWeight){
+      newCIdata <- fread(file.path(workPath, "data", "AllCompetitionData",
+                                   paste("CompetitionData_DW",j, "_SW", i, ".csv", sep = "")))
+      analysesDataAll <- setkey(analysesData, uniTreeID, IniYear)[setkey(newCIdata, uniTreeID, IniYear),
                                                                      nomatch = 0]
       
-      for(indispecies in c("Jack pine", "Trembling aspen", "Black spruce", "Other species")){
+      for(indispecies in c("All species", "Jack pine", "Trembling aspen",
+                           "Black spruce", "Minor species")){
         speciesData <- analysesDataAll[Species == indispecies,]
-        
         speciesData[,':='(logY = log(BiomassGR),
+                          logHctd = log(H+1)-mean(log(H+1)),
                           logIntraHctd = log(IntraH+1) - mean(log(IntraH+1)),
                           logInterHctd = log(InterH+1) - mean(log(InterH+1)))]
-        IntraHM <- lme(logY~logIntraHctd,
-                       random = ~1|PlotID,
+        HModel <- lme(logY~logHctd, random = ~1|uniTreeID,
+                      data = speciesData,
+                      control = lmeControl(opt="optim", maxIter=50000, msMaxIter = 50000))
+        IntraHModel <- lme(logY~logIntraHctd,
+                       random = ~1|uniTreeID,
                        data = speciesData,
                        control = lmeControl(opt="optim", maxIter=50000, msMaxIter = 50000))
-        InterHM <- lme(logY~logInterHctd,
-                       random = ~1|PlotID,
+        InterHModel <- lme(logY~logInterHctd,
+                       random = ~1|uniTreeID,
                        data = speciesData,
                        control = lmeControl(opt="optim", maxIter=50000, msMaxIter = 50000))
         aictable <- data.table(Species = indispecies, sizeWeight = i, 
-                               disweight = j, IntraHAIC = AIC(IntraHM), 
-                               InterHAIC = AIC(InterHM))
+                               disWeight = j, HAIC = AIC(HModel),
+                               IntraHAIC = AIC(IntraHModel), 
+                               InterHAIC = AIC(InterHModel))
         output <- rbind(output, aictable)
       }
-      cat("sizeWeight: ", i, "disweight: ", j, "is done. \n")  
     }
   }
-  write.csv(output, file.path(workPath, "Results", "bestWeightsbothsizeanddistanceRescaled.csv"), row.names = F)
-  rm(i, j, output)
-} else {
-   output <- read.csv(file.path(workPath, "Results", "bestWeightsbothsizeanddistanceRescaled.csv"),
-                    header = TRUE, stringsAsFactors = FALSE) %>% data.table
+  return(output)
 }
- rm(i, j)
- 
-output <- unique(output, by = c("Species", "sizeWeight", "disweight"))
-a <- melt(output, id.vars = c("Species", "sizeWeight", "disweight"), 
-          measure.vars = c("IntraHAIC", "InterHAIC"),
+
+
+
+
+inputWeights <- list()
+m <- 1
+for(i in seq(0, 10, by = 0.1)){
+  for(j in seq(0, 2, by = 0.1)){
+    inputWeights[[m]] <- c(i, j)
+    m <- m+1
+  }
+}
+
+
+analysesData[,':='(H = NULL, IntraH = NULL, InterH = NULL)]
+
+
+cl <- parallel::makeCluster(parallel::detectCores()-1)
+parallel::clusterExport(cl, c("lme", "AIC", "lmeControl", "data.table", "myFunction",
+                              "setkey", "fread", "workPath", "analysesData"))
+
+allresults <- parLapply(cl, inputWeights, 
+          function(y) myFunction(sizeWeight = y[1], disWeight = y[2], 
+                                 analysesData = analysesData, workPath = workPath))
+stopCluster(cl)
+
+for(i in 1:length(allresults)){
+  if(i == 1){
+    output <- allresults[[i]]
+  } else {
+    output <- rbind(output, allresults[[i]])
+  }
+}
+
+write.csv(output, file.path(workPath, "Results", "bestAandBRandomUniTreeID_TwoCensusPositive.csv"), row.names = F)
+# output <- fread(file.path(workPath, "Results", "newbestAandBRandomUniTreeID.csv"))
+# output[,sizeWeight:=as.numeric(sizeWeight)]
+# output <- output[sizeWeight<8.1,]
+# output <- unique(output, by = c("Species", "sizeWeight", "disWeight"))
+a <- melt(output, id.vars = c("Species", "sizeWeight", "disWeight"), 
+          measure.vars = c("HAIC", "IntraHAIC", "InterHAIC"),
           value.name = "Value")
-a[,':='(variable = factor(variable, levels = c("IntraHAIC", "InterHAIC"),
-                          labels = c("Intraspecific competition", "Interspecific competition")),
-        Species = factor(Species, levels = c("All", "JP", "TA", "BS", "Other"),
-                         labels = c("All species", "Jack pine", "Trembling aspen", "Black spruce",
-                                    "Other species")))]
 
 a[,minvalue:=min(Value), by = c("Species", "variable")]
-
 bestWeightTable <- a[Value == minvalue,]
 
-for(indispecies in c("All species", "Jack pine", "Trembling aspen", "Black spruce",
-                     "Other species")){
-  processCIdata <- data.table::copy(CIcompetitionData)
-  analysesDataAll <- data.table::copy(analysesData)
+analysesData <- fread(file.path(workPath, "data", "newAllDataRescaledComp1.csv"))
+studySpecies <- c("All species", "Jack pine", "Trembling aspen", "Black spruce",
+                  "Minor species")
+analysesData[Species == "Other species", Species:="Minor species"]
+analysesData[,':='(H = NULL, IntraH = NULL, InterH = NULL)]
+for(indispecies in studySpecies){
+  speciesData <- analysesData[Species == indispecies,]
+  HsizeWeight <- bestWeightTable[Species == indispecies & variable == "HAIC",]$sizeWeight
+  HdisWeight <- bestWeightTable[Species == indispecies & variable == "HAIC",]$disWeight
+  HCIdata <- fread(file.path(workPath, "data", "AllCompetitionData",
+                             paste("CompetitionData_DW",HdisWeight, "_SW", HsizeWeight, ".csv", sep = "")))
   
-  bestIntraSizeWei <- bestWeightTable[Species == indispecies & 
-                                        variable == "Intraspecific competition", ]$sizeWeight
-  bestIntraDisWei <- bestWeightTable[Species == indispecies & 
-                                       variable == "Intraspecific competition", ]$disweight
-  bestInterSizeWei <- bestWeightTable[Species == indispecies & 
-                                        variable == "Interspecific competition", ]$sizeWeight
+  IntraHsizeWeight <- bestWeightTable[Species == indispecies & variable == "IntraHAIC",]$sizeWeight
+  IntraHdisWeight <- bestWeightTable[Species == indispecies & variable == "IntraHAIC",]$disWeight
+  IntraHCIdata <- fread(file.path(workPath, "data", "AllCompetitionData",
+                             paste("CompetitionData_DW",IntraHdisWeight, "_SW", IntraHsizeWeight, ".csv", sep = "")))
   
-  bestInterDisWei <- bestWeightTable[Species == indispecies & 
-                                       variable == "Interspecific competition", ]$disweight
-  bestIntraHdata <- HeghyiCICalculation(data = processCIdata,
-                                        maxRadius = 12.62,
-                                        sizeIndex = "Biomass",
-                                        distanceWeight = bestIntraDisWei, 
-                                        sizeWeight = as.numeric(bestIntraSizeWei),
-                                        assymetricScale = "Rescale")
-  bestInterHdata <- HeghyiCICalculation(data = processCIdata,
-                                        maxRadius = 12.62,
-                                        sizeIndex = "Biomass",
-                                        distanceWeight = bestInterDisWei, 
-                                        sizeWeight = as.numeric(bestInterSizeWei),
-                                        assymetricScale = "Rescale")
+  InterHsizeWeight <- bestWeightTable[Species == indispecies & variable == "InterHAIC",]$sizeWeight
+  InterHdisWeight <- bestWeightTable[Species == indispecies & variable == "InterHAIC",]$disWeight
+  InterHCIdata <- fread(file.path(workPath, "data", "AllCompetitionData",
+                                  paste("CompetitionData_DW",InterHdisWeight, "_SW", InterHsizeWeight, ".csv", sep = "")))
+  allCIdata <- setkey(HCIdata[,.(uniTreeID, IniYear, H)], uniTreeID, IniYear)[setkey(IntraHCIdata[,.(uniTreeID, IniYear, IntraH)],
+                                                                                     uniTreeID, IniYear), nomatch = 0]
+  allCIdata <- setkey(allCIdata, uniTreeID, IniYear)[setkey(InterHCIdata[,.(uniTreeID, IniYear, InterH)],
+                                                                                     uniTreeID, IniYear), nomatch = 0]
   
-  bestIntraHdata[, ':='(uniTreeID=paste(PlotNumber, "_", TreeNumber, sep = ""),
-                        IniYear = Year)]
-  bestIntraHdata[,':='(PlotNumber = NULL, TreeNumber = NULL, Year = NULL)]
-  names(bestIntraHdata)[1:3] <- c("H", "IntraH", "InterH")
-  bestIntraHdata <- unique(bestIntraHdata, by = c("uniTreeID", "IniYear"))
-  bestInterHdata[, ':='(uniTreeID=paste(PlotNumber, "_", TreeNumber, sep = ""),
-                        IniYear = Year)]
-  bestInterHdata[,':='(PlotNumber = NULL, TreeNumber = NULL, Year = NULL)]
-  names(bestInterHdata)[1:3] <- c("H", "IntraH", "InterH")
-  bestInterHdata <- unique(bestInterHdata, by = c("uniTreeID", "IniYear"))
-  bestIntraHdata[,':='(InterH = NULL, H = NULL)]
-  bestInterHdata[,':='(IntraH = NULL, H = NULL)]
-  allcidata <- setkey(bestIntraHdata, uniTreeID, IniYear)[setkey(bestInterHdata, uniTreeID, IniYear),
-                                                          nomatch = 0]
+  speciesData <- setkey(speciesData, uniTreeID, IniYear)[setkey(allCIdata, uniTreeID, IniYear), 
+                                                         nomatch = 0]
   if(indispecies == "All species"){
-    speciesData <- data.table::copy(analysesDataAll)
-  } else if(indispecies == "Other species"){
-    speciesData <- analysesDataAll[!(Species %in% c("JP", "TA", "BS")),]
-  } else if (indispecies == "Jack pine"){
-    speciesData <- analysesDataAll[Species == "JP",]
-  } else if(indispecies == "Trembling aspen"){
-    speciesData <- analysesDataAll[Species == "TA",]
+    newAllData <- speciesData
   } else {
-    speciesData <- analysesDataAll[Species == "BS",]
-  }
-  speciesData <- setkey(speciesData, uniTreeID, IniYear)[setkey(allcidata, uniTreeID, IniYear),nomatch = 0]
-  speciesData <- cbind(data.table(DataType = rep(indispecies, nrow(speciesData))), speciesData)
-  if(indispecies == "All species"){
-    allnewdata <- speciesData
-  } else {
-    allnewdata <- rbind(allnewdata, speciesData)
+    newAllData <- rbind(newAllData, speciesData)
   }
 }
-write.csv(allnewdata, 
-          file.path(workPath, "newAllDataRescaledComp.csv"),
-          row.names = F)
+
+write.csv(newAllData, file.path(workPath, "data", "finalData.csv"), row.names = FALSE)
+
+
+
+
+

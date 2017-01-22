@@ -98,7 +98,7 @@ Figure1a <- ggplot(data = canadamapall, aes(x = long, y = lat)) +
   geom_polygon(aes(group = group, fill = as.factor(fill)))+
   scale_fill_manual(values = "gray")+
   geom_polygon(data = borealall, aes(x = long, y = lat, group = group),
-               fill = "green")+
+               fill = "deepskyblue")+
   geom_path(aes(group = group), col = "white", size = 1)+
   geom_line(data = coordReferenceFinal, aes(x = long, y = lat, group = line),
             colour = "gray", linetype = 2)+
@@ -203,7 +203,7 @@ Figure1c <- ggplot(data = AnnualCMIRaster_p, aes(x = long, y = lat))+
   geom_raster(aes(fill = CMI))+
   scale_fill_gradient2(name = expression(atop("Annual climate \nmoisture index \ntrend", 
                                               paste("(mm yea",r^{-1}, ")"))),
-                       low = "red", high = "blue")+
+                       low = "red", high = "green")+
   guides(fill = guide_colourbar(title.position = "top"))+
   geom_point(data = MBlocation,
              aes(x = MBlocation$Easting, y = MBlocation$Northing), col = "black",

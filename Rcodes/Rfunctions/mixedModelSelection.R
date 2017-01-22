@@ -84,7 +84,6 @@ setMethod("mixedModelSelection",
                 allIDV <- c(allIDV, interactions)
               }
             }
-            rm(tempV, i, j, interactions)
             # full model
             modelFormula <- paste(DV, "~", paste(allIDV, collapse = "+"), sep = "")
             themodel <- nlme::lme(as.formula(modelFormula),...)
@@ -169,28 +168,31 @@ setMethod("mixedModelSelection",
                 allIDV <- unlist(lapply(lapply(lapply(allIDV,  function(x){unlist(strsplit(x, ":"))}), sort),
                                         function(x){paste(x, collapse = ":")}))
                 addedIDVs <- allIDV[!(allIDV %in% currentIDV)]
-                expandedFomus <- c()
-                expandedIDV <- c()
-                
-                for(j in 1:length(addedIDVs)){
-                  expandedFomus <- c(expandedFomus, paste("logY~", paste(c(currentIDV, addedIDVs[j]), collapse = "+"), sep = ""))
-                  expandedIDV <- c(expandedIDV, addedIDVs[j])
+                if(length(addedIDVs)>0){
+                  expandedFomus <- c()
+                  expandedIDV <- c()
+                  
+                  for(j in 1:length(addedIDVs)){
+                    expandedFomus <- c(expandedFomus, paste("logY~", paste(c(currentIDV, addedIDVs[j]), collapse = "+"), sep = ""))
+                    expandedIDV <- c(expandedIDV, addedIDVs[j])
+                  }
+                  outputAdd_expanded <- data.table(From = previousModelName, 
+                                                   Execution = paste("+", expandedIDV, sep = ""),
+                                                   To = paste("Expanded-", expendMark, "-", 1:length(addedIDVs), sep = ""),
+                                                   NofIDV = length(currentIDV)+1, 
+                                                   IC = unlist(parLapply(cl, expandedFomus, 
+                                                                         function(y) getICformFomula(fomula = y, ICTerm, ...))))
+                  expendMark <- expendMark+1
+                  outputAdd_expanded[,':='(deltaIC = IC - previousIC, modelindex = 1:length(addedIDVs))]
+                  bestModel <- outputAdd_expanded[deltaIC < -ICCut & deltaIC == min(deltaIC),]
+                  if(nrow(bestModel) >= 1){
+                    currentIDV <- c(previousIDV, addedIDVs[(bestModel[1,]$modelindex)])
+                    previousIC <- bestModel[1,]$IC
+                    previousModelName <- bestModel[1,]$To
+                  }
+                  output <- rbind(output, outputAdd_expanded[,modelindex:=NULL])
                 }
-                outputAdd_expanded <- data.table(From = previousModelName, 
-                                                 Execution = paste("+", expandedIDV, sep = ""),
-                                                 To = paste("Expanded-", expendMark, "-", 1:length(addedIDVs), sep = ""),
-                                                 NofIDV = length(currentIDV)+1, 
-                                                 IC = unlist(parLapply(cl, expandedFomus, 
-                                                                       function(y) getICformFomula(fomula = y, ICTerm, ...))))
-                expendMark <- expendMark+1
-                outputAdd_expanded[,':='(deltaIC = IC - previousIC, modelindex = 1:length(addedIDVs))]
-                bestModel <- outputAdd_expanded[deltaIC < -ICCut & deltaIC == min(deltaIC),]
-                if(nrow(bestModel) >= 1){
-                  currentIDV <- c(previousIDV, addedIDVs[(bestModel[1,]$modelindex)])
-                  previousIC <- bestModel[1,]$IC
-                  previousModelName <- bestModel[1,]$To
-                }
-                output <- rbind(output, outputAdd_expanded[,modelindex:=NULL])
+
               }
             }
             
