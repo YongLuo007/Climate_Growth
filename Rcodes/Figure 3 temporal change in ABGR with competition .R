@@ -4,7 +4,7 @@ library(data.table); library(ggplot2); library(SpaDES)
 library(nlme); library(dplyr);library(MuMIn);library(gridExtra)
 workPath <- "~/GitHub/Climate_Growth"
 load(file.path(workPath, "data",
-               "finalYearModels_AllCensus_PositiveGrowth_BothPlotIDandUniTree.RData"))
+               "finalYearModels_AllCensus_PositiveGrowth.RData"))
 ##### for overall temporal trends and its dependency on DBH and RBI
 for(i in 1:length(allHFixedCoeff)){
   indicoeff <- allHFixedCoeff[[i]]
@@ -28,7 +28,7 @@ indiHcoeff[variable == "logIntraHctd:Yearctd", Direction:="changewithIntraH"]
 indiHcoeff[variable == "logInterHctd:Yearctd", Direction:="changewithInterH"]
 
 output <- data.table(Model = character(), Species = character(), Direction = character(), Year = numeric(),
-                     CompetitionIntensity = character(), PredictedABGR = numeric(),
+                     CompetitionIntensity = numeric(), PredictedABGR = numeric(),
                      PredictedABGR_Lower = numeric(), PredictedABGR_Upper = numeric())
 for(indispecies in studySpecies){
   speciesData <- analysesData[Species == indispecies,]
@@ -91,7 +91,7 @@ for(indispecies in studySpecies){
                                                      length = 100), 
                                           H = exp(seq(log(min(speciesData$H+1)),
                                                       log(max(speciesData$H+1)),
-                                                      length = 100)),
+                                                      length = 100))-1,
                                           stringsAsFactors = FALSE))
     changewithH[,':='(Yearctd = Year-mean(speciesData$Year),
                       logDBHctd = 0,
@@ -121,7 +121,7 @@ for(indispecies in studySpecies){
                                                      length = 100), 
                                           IntraH = exp(seq(log(min(speciesData$IntraH+1)),
                                                            log(max(speciesData$IntraH+1)),
-                                                           length = 100)),
+                                                           length = 100))-1,
                                           stringsAsFactors = FALSE))
     changewithH[,':='(Yearctd = Year-mean(speciesData$Year),
                       logDBHctd = 0,
@@ -148,7 +148,7 @@ for(indispecies in studySpecies){
                                                      length = 100), 
                                           InterH = exp(seq(log(min(speciesData$InterH+1)),
                                                            log(max(speciesData$InterH+1)),
-                                                           length = 100)),
+                                                           length = 100))-1,
                                           stringsAsFactors = FALSE))
     changewithH[,':='(Yearctd = Year-mean(speciesData$Year),
                       logDBHctd = 0,
@@ -172,75 +172,49 @@ for(indispecies in studySpecies){
 
 
 output[,':='(Species = factor(Species, studySpecies),
-             Model = factor(Model, levels = c("allH", "indiH_IntraH", "indiH_InterH")))]
+             Direction = factor(Direction, 
+                                levels = c("mainTrend", "changewithH", "changewithIntraH", "changewithInterH")))]
 
-allFigureData <- data.table::copy(output)[Direction %in% directions, ]
-allFigureData <- allFigureData[Species %in% studySpecies,]
-allFigureData[,newDirection:=Direction]
-allFigureData[Direction == "changewithH" & CompetitionIntensity == "Weak", 
-              newDirection:="changewithHweak"]
-
-allFigureData[Direction == "changewithIntraH" & CompetitionIntensity == "Weak", 
-              newDirection:="changewithIntraHweak"]
-
-
-allFigureData[, ':='(newDirection = factor(newDirection, 
-                                           levels = c("mainTrend", "changewithHweak", "changewithH",
-                                                      "changewithIntraHweak",
-                                                      "changewithIntraH", "changewithInterH")),
-                     CompetitionIntensity = factor(CompetitionIntensity, 
-                                                   levels = c("Weak", "Medium", "Strong")))]
 
 segmenttable <- data.table(Species = "All species", 
-                           newDirection = unique(allFigureData$newDirection),
+                           Direction = unique(output$Direction),
                            x = -Inf, xend = -Inf, y = -Inf, yend = Inf)
 
 segmenttable2 <- data.table(expand.grid(Species = factor(studySpecies),
-                                        newDirection = directions[directions %in% unique(allFigureData$newDirection)]))
+                                        Direction = unique(output$Direction)))
 segmenttable2[,':='(x = -Inf, xend = Inf, y = -Inf, yend = -Inf)]
-
-
 segmenttable <- rbind(segmenttable, segmenttable2)
 
 
 
 segmenttable[,':='(Species = factor(Species, 
                                     levels = studySpecies),
-                   newDirection = factor(newDirection, 
-                                         levels = c("mainTrend", "changewithHweak", "changewithH",
-                                                    "changewithIntraHweak",
-                                                    "changewithIntraH", "changewithInterH")))]
+                   Direction = factor(Direction, 
+                                      levels = c("mainTrend", "changewithH", "changewithIntraH", "changewithInterH")))]
 
 texttable <- data.table(Species = "All species", 
-                        newDirection = unique(allFigureData$newDirection)[!(unique(allFigureData$newDirection) %in%
-                                                                              c("changewithH", "changewithIntraH"))],
-                        x = 1989, y = Inf)[,texts := letters[1:length(newDirection)]]
+                        Direction = unique(output$Direction),
+                        x = 1989, y = Inf)[,texts := letters[1:length(Direction)]]
 texttable[,':='(Species = factor(Species, 
                                  levels = studySpecies),
-                newDirection = factor(newDirection, 
-                                      levels = c("mainTrend", "changewithHweak", "changewithH",
-                                                 "changewithIntraHweak",
-                                                 "changewithIntraH", "changewithInterH")))]
+                Direction = factor(Direction, 
+                                   levels = c("mainTrend", "changewithH", "changewithIntraH", "changewithInterH")))]
 figure <- ggplot(data = output[Direction != "mainTrend"], aes(x = Year, y = PredictedABGR))+
-  facet_grid(Model~Species, scale = "free_y",  drop = TRUE)+
-  # geom_ribbon(aes(group = CompetitionIntensity, fill = CompetitionIntensity,
-  #                 ymin = PredictedABGR_Lower, 
-  #                 ymax = PredictedABGR_Upper), col = "white", alpha = 0.2)+
-  geom_line(aes(group = CompetitionIntensity, col = as.numeric(CompetitionIntensity)), 
+  facet_grid(Direction~Species, scale = "free_y",  drop = TRUE)+
+  geom_line(aes(group = CompetitionIntensity, col = CompetitionIntensity), 
             size = 1)+
-  geom_ribbon(data = allFigureData[Direction == "mainTrend", ], 
-              aes (x = Year, ymin = PredictedABGR_Lower, 
-                   ymax = PredictedABGR_Upper, group = Model),
-              fill = "gray", alpha = 0.2)+
-  geom_line(data = allFigureData[Direction == "mainTrend", ], 
-            aes (x = Year, y = PredictedABGR, group = Model, linetype = Model),
+  geom_line(data = output[Direction == "mainTrend" & Model == "indiH_IntraH", ], 
+            aes(x = Year, y = PredictedABGR),
+            col = "gray", size = 1, show.legend = FALSE)+
+  geom_line(data = output[Direction == "mainTrend" & Model == "allH", ], 
+            aes(x = Year, y = PredictedABGR),
             col = "black", size = 1, show.legend = FALSE)+
   scale_y_continuous(name = expression(paste("Aboveground biomass growth rate (Kg ", year^{-1}, ")")))+
   scale_x_continuous(name = "Year", breaks = seq(1990, 2010, by = 5))+
-  scale_color_manual(name = "Competition intensity", values = c("blue", "magenta"),
-                     labels = c("Weak", "Strong"))+
-  scale_fill_manual(name = "Competition intensity", values = c("blue", "magenta"),
-                    labels = c("Weak", "Strong"))+
+  scale_color_continuous(name = "Competition \nintensity\n",
+                       low = "blue", high = "red", breaks = c(3, 100),
+                       labels = c("Weak", "Strong\n"),
+                       guide = guide_colorbar(reverse = TRUE))+
   geom_segment(data = segmenttable, aes(x = x, xend = xend, y = y, yend = yend), size = 1)+
   geom_text(data = texttable, aes(x = x, y = y, label = texts), vjust = 1, size = 10)+
   theme_bw()+
@@ -253,12 +227,9 @@ figure <- ggplot(data = output[Direction != "mainTrend"], aes(x = Year, y = Pred
         strip.background = element_rect(colour = "white"),
         strip.text.x = element_text(size = 15),
         legend.background = element_rect(colour = "black"),
-        legend.direction = "horizontal",
-        legend.position = c(0.25, 0.10),
+        legend.position = c(0.90, 0.15),
         legend.text = element_text(size = 13),
         legend.title = element_text(size = 15))
-dev(4)
-clearPlot()
 workPath <- "~/GitHub/Climate_Growth"
 ggsave(file = file.path(workPath, "TablesFigures", "Figure 3. temporal trends by competition.png"),
        figure,  width = 11, height = 9.5)
