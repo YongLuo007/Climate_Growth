@@ -2,7 +2,7 @@ rm(list = ls())
 library(data.table); library(ggplot2); library(SpaDES)
 library(nlme); library(dplyr);library(MuMIn)
 workPath <- "~/GitHub/Climate_Growth"
-load(file.path(workPath, "data", "ClimateModelSelection168Plots2.RData"))
+load(file.path(workPath, "data", "ClimateModels_AllCensus_PositiveGrowth.RData"))
 
 competitionModel <- c("allH", "indiH")
 for(i in competitionModel){
@@ -93,6 +93,7 @@ interactionTable[rn == "Climatectd:logIntraHctd", CompetitionName:="IntraH"]
 interactionTable[rn == "Climatectd:logInterHctd", CompetitionName:="InterH"]
 interactionTable[,rn:=NULL]
 
+
 alloutput1 <- dplyr::left_join(alloutput, maineffectTable, by = c("competitionModel", "Species", "Climate")) %>%
   data.table
 alloutput1[is.na(mainEffect), ':='(mainEffect = 0, mainEffect_SE = 0)]
@@ -128,6 +129,7 @@ climateWithCompTable[Climate %in% c("ACMIA", "GSCMIA", "NONGSCMIA"), ClimateName
 climateWithCompTable[Climate %in% c("ACO2A", "GSCO2A", "NONGSCO2A"), ClimateName:="CO2"]
 climateWithCompTable[, ClimateName:=factor(ClimateName, levels = c("Temperature", "CMI", "CO2"))]
 
+climateWithCompTable <- climateWithCompTable[Climate %in% c("ATA", "ACMIA", "ACO2A"),]
 
 
 # startPoints <- climateWithCompTable[xscale %in% c(1, 4, 7, 10),][, ':='(x = xscale+1)]
@@ -189,7 +191,7 @@ seasontexts <- data.table(ClimateName = factor(c("Temperature"),
                           x = 2, y = Inf)
 
 FigureB <- ggplot(data = climateWithCompTable[interactEff != 0, ], aes(x = xaxis, y = mainEffect))+
-  facet_grid(ClimateName~SeasonComp,
+  facet_grid(ClimateName~CompetitionName,
              scales = "free_y", switch = "both")+
              # labeller = figure_labeller, drop = FALSE)+
   geom_point(data = climateWithCompTable[interactEff == 0 & mainEffect != 0, ], 
