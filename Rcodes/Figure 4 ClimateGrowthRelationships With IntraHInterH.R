@@ -5,7 +5,7 @@ workPath <- "~/GitHub/Climate_Growth"
 selectionMethod <- "AllCensus_PositiveGrowth_RandomPlotADTree"
 load(file.path(workPath, "data", selectionMethod, "BestClimateModels.RData"))
 
-competitionModel <- c("allH")
+competitionModel <- c("indiH")
 for(i in competitionModel){
   allcoeffTable <- get(paste(i, "FixedCoeff", sep = ""))
   for(j in 1:length(allcoeffTable)){
@@ -15,7 +15,7 @@ for(i in competitionModel){
                                   Species = modelName[1],
                                   Climate = modelName[2]), 
                        allcoeffTable[[j]])
-    if(i == "allH" & j == 1){
+    if(i == "indiH" & j == 1){
       allCoeff <- coeffIndi
     } else {
       allCoeff <- rbind(allCoeff, coeffIndi)
@@ -37,14 +37,24 @@ for(indispecies in majorspecies){
   speciesData <- analysesData[Species == indispecies,]
   climateWithCompetitionTable <- rbind(data.table(expand.grid(Species = indispecies,
                                                               competitionModel = competitionModel,
-                                                          Climate = as.character(longcol), 
-                                                          CompetitionName = "H",
-                                                          CompetitionMin = min(speciesData$H),
-                                                          CompetitionMax = max(speciesData$H),
-                                                          stringsAsFactors = FALSE))) %>% data.table
-  climateWithCompetitionTable[CompetitionName == "H",
-                              ':='(CompetitionMinctd = log(CompetitionMin+1)-mean(log(speciesData$H+1)),
-                                   CompetitionMaxctd = log(CompetitionMax+1)-mean(log(speciesData$H+1)))]
+                                                              Climate = as.character(longcol), 
+                                                              CompetitionName = "IntraH",
+                                                              CompetitionMin = min(speciesData$IntraH),
+                                                              CompetitionMax = max(speciesData$IntraH),
+                                                              stringsAsFactors = FALSE)),
+                                       data.table(expand.grid(Species = indispecies,
+                                                              competitionModel = competitionModel,
+                                                              Climate = as.character(longcol), 
+                                                              CompetitionName = "InterH",
+                                                              CompetitionMin = min(speciesData$InterH),
+                                                              CompetitionMax = max(speciesData$InterH),
+                                                              stringsAsFactors = FALSE))) %>% data.table
+  climateWithCompetitionTable[CompetitionName == "IntraH",
+                              ':='(CompetitionMinctd = log(CompetitionMin+1)-mean(log(speciesData$IntraH+1)),
+                                   CompetitionMaxctd = log(CompetitionMax+1)-mean(log(speciesData$IntraH+1)))]
+  climateWithCompetitionTable[CompetitionName == "InterH",
+                              ':='(CompetitionMinctd = log(CompetitionMin+1)-mean(log(speciesData$InterH+1)),
+                                   CompetitionMaxctd = log(CompetitionMax+1)-mean(log(speciesData$InterH+1)))]
   if(indispecies == "All species"){
     alloutput <- climateWithCompetitionTable
   } else {
@@ -52,7 +62,7 @@ for(indispecies in majorspecies){
   }
 }
 m <- 1
-for(i in c("H")){
+for(i in c("IntraH", "InterH")){
   alloutput[CompetitionName == i & Species == majorspecies[1], xaxis := m]
   alloutput[CompetitionName == i & Species == majorspecies[2], xaxis := m+1]
   alloutput[CompetitionName == i & Species == majorspecies[3], xaxis := m+2]
@@ -66,16 +76,19 @@ maineffectTable <- OverallResults[rn == "Climatectd",][, .(competitionModel,
                                                            Species, Climate, mainEffect = Value,
                                                            mainEffect_SE = Std.Error)]
 
-interactionTable <- OverallResults[rn %in% c("Climatectd:logHctd"),][
+interactionTable <- OverallResults[rn %in% c("Climatectd:logIntraHctd", "Climatectd:logInterHctd"),][
   ,.(competitionModel, rn, Species, Climate, interactEff = Value, 
      interactEff_SE = Std.Error)]
+interactionTable[rn == "Climatectd:logIntraHctd", CompetitionName:="IntraH"]
+interactionTable[rn == "Climatectd:logInterHctd", CompetitionName:="InterH"]
+interactionTable[,rn:=NULL]
 
 
 alloutput1 <- dplyr::left_join(alloutput, maineffectTable, by = c("competitionModel", "Species", "Climate")) %>%
   data.table
 alloutput1[is.na(mainEffect), ':='(mainEffect = 0, mainEffect_SE = 0)]
 
-alloutput1 <- dplyr::left_join(alloutput1, interactionTable, by = c("competitionModel", "Species", "Climate")) %>%
+alloutput1 <- dplyr::left_join(alloutput1, interactionTable, by = c("competitionModel", "Species", "Climate", "CompetitionName")) %>%
   data.table
 alloutput1 <- alloutput1[is.na(interactEff),':='(interactEff = 0, 
                                                  interactEff_SE = 0)]
@@ -96,12 +109,16 @@ climateWithCompTable[, SeasonComp:=factor(SeasonComp,
                                           levels = c("Annual anomaly", 
                                                      "Growing season anomaly", 
                                                      "Non-growing season anomaly"))]
+
+
 climateWithCompTable[,':='(Species = factor(Species, levels = majorspecies))]
 
 climateWithCompTable[Climate %in% c("ATA", "GSTA", "NONGSTA"), ClimateName:="Temperature"]
 climateWithCompTable[Climate %in% c("ACMIA", "GSCMIA", "NONGSCMIA"), ClimateName:="CMI"]
 climateWithCompTable[Climate %in% c("ACO2A", "GSCO2A", "NONGSCO2A"), ClimateName:="CO2"]
 climateWithCompTable[, ClimateName:=factor(ClimateName, levels = c("Temperature", "CMI", "CO2"))]
+
+
 
 ZeroLines <- rbind(data.table(SeasonComp = c("Annual anomaly", 
                                              "Growing season anomaly", 
@@ -112,17 +129,21 @@ ZeroLines <- rbind(data.table(SeasonComp = c("Annual anomaly",
                               ClimateName="CMI"),
                    data.table(SeasonComp = c("Annual anomaly"),
                               ClimateName="CO2"))
-ZeroLines[,':='(x = -Inf, xend = Inf, y = 0, yend = 0,
-                SeasonComp = factor(SeasonComp, levels = c("Annual anomaly", 
+
+ZeroLines[,':='(SeasonComp = factor(SeasonComp, levels = c("Annual anomaly", 
                                                            "Growing season anomaly", 
                                                            "Non-growing season anomaly")),
                 ClimateName = factor(ClimateName, levels = c("Temperature", "CMI", "CO2")))]
+ZeroLines[,':='(x = -Inf, xend = Inf, y = 0, yend = 0)]
+
+HbreakLines <- rbind(ZeroLines[,.(SeasonComp, ClimateName)][,':='(x = 6, xend = 6, y = -Inf, yend = Inf)],
+                     ZeroLines[,.(SeasonComp, ClimateName)][,':='(x = -Inf, xend = -Inf, y = -Inf, yend = Inf)])
 
 Yaxislines <- data.table(SeasonComp = factor(c("Annual anomaly"),
                                              levels = c("Annual anomaly", 
                                                         "Growing season anomaly", 
                                                         "Non-growing season anomaly")),
-                                    x = -Inf, xend = -Inf, y = -Inf, yend = Inf)
+                         x = -Inf, xend = -Inf, y = -Inf, yend = Inf)
 
 Xaxislines <- data.table(x = Inf, xend = -Inf, y = -Inf, yend = -Inf)
 
@@ -151,30 +172,26 @@ figure_labeller <- function(variable,value){
     return(newlabels2[value])
   } 
 }
+maxTemperatureEff <- 1.2
+IntraHInterHTexts <- data.table(ClimateName = factor("Temperature", levels = c("Temperature", "CMI", 
+                                                                               "CO2")),
+                                x = c(3, 3+6),
+                                y = maxTemperatureEff,
+                                texts = c("IntraH", "InterH"))
 
-
-
-seasontexts <- data.table(ClimateName = factor(c("Temperature"),
-                                               levels = c("Temperature", "CMI", 
-                                                          "CO2")), 
-                          SeasonComp = factor(c("WholeIntraH", "GSIntraH", "NGSIntraH"),
-                                              levels = c("WholeIntraH", "WholeInterH", 
-                                                         "GSIntraH", "GSInterH", 
-                                                         "NGSIntraH", "NGSInterH")),
-                          labels = c("Annual anomaly", "Growing season anomaly",
-                                     "Non-growing season anomaly"),
-                          x = 2, y = Inf)
 
 FigureB <- ggplot(data = climateWithCompTable[interactEff != 0, ], aes(x = xaxis, y = mainEffect))+
   facet_grid(ClimateName~SeasonComp,
              scales = "free_y", switch = "y",
              labeller = figure_labeller, drop = FALSE)+
   geom_segment(data = ZeroLines, aes(x = x, xend = xend, 
-                             y = y, yend = yend), linetype = 2, col = "gray", size = 1)+
+                                     y = y, yend = yend), linetype = 2, col = "gray", size = 1)+
+  geom_segment(data = HbreakLines, aes(x = x, xend = xend, 
+                                     y = y, yend = yend), linetype = 1, col = "gray", size = 1)+
   geom_errorbar(aes(ymin = EffectMin-1.98*EffectMin_SE, ymax = EffectMin+1.98*EffectMin_SE), 
-                width = 0.2, col = "gray", size = 1)+
+                width = 0.4, col = "gray", size = 1)+
   geom_errorbar(aes(ymin = EffectMax-1.98*EffectMax_SE, ymax = EffectMax+1.98*EffectMax_SE), 
-                width = 0.2, col = "gray", size = 1)+
+                width = 0.4, col = "gray", size = 1)+
   geom_segment(aes(col = Species, y = EffectMin, yend = EffectMax, 
                    x = xaxis, xend = xaxis), 
                arrow = arrow(length = unit(0.05, "npc")), size = 1)+
@@ -189,7 +206,8 @@ FigureB <- ggplot(data = climateWithCompTable[interactEff != 0, ], aes(x = xaxis
   geom_segment(data = Xaxislines, aes(x = x, xend = xend, y = y, yend = yend), 
                size = 1, col = "black")+
   geom_text(data = labeltexts, aes(x = x, y = y, label = labels),
-            vjust = 1.5, hjust = -1.5, size = 7)+
+            vjust = 1.5, hjust = -1.2, size = 7)+
+  geom_text(data = IntraHInterHTexts, aes(x = x, y = y, label = texts), size = 3)+
   theme(panel.grid = element_blank(),
         panel.border = element_blank(),
         panel.background = element_blank(),
@@ -209,9 +227,7 @@ FigureB <- ggplot(data = climateWithCompTable[interactEff != 0, ], aes(x = xaxis
 workPath <- "~/GitHub/Climate_Growth"
 
 ggsave(file.path(workPath, "TablesFigures",
-                 "Figure 4. Climate associations with H.png"), FigureB,
+                 "Figure 4. Climate associations with IntraHInterH.png"), FigureB,
        width = 10, height = 7)
-
-
 
 

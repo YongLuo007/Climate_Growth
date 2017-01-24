@@ -32,21 +32,19 @@ climateData <- setkey(climateData, Year, Month)[setkey(CO2data[,.(Year, Month, C
 # long term is defined as 1985 to 2011
 climateData[,CMI:=Prep - PET]
 climateData[Month>=10, Year:=Year+1]
-AnnualClimate <- climateData[Year>=1984 & Year<= 2011,][,.(AT = mean(Temp), AP = sum(Prep),
+AnnualClimate <- climateData[Year>=1985 & Year<= 2011,][,.(AT = mean(Temp), AP = sum(Prep),
                                                            APET = sum(PET),
                                                            ACMI = sum(CMI), CO2 = mean(CO2)), 
                                                         by = c("PlotID", "Year")]
-GSClimate <- climateData[Year>=1984 & Year<= 2011 & Month<=9 & Month >= 5,][
-  ,.(GST = mean(Temp), GSP = sum(Prep), GSPET = sum(PET), GSCMI = sum(CMI), GSCO2 = mean(CO2)), by = c("PlotID", "Year")]
-
-NONGSClimate <- climateData[Year>=1984 & Year<= 2011 & (Month > 9 | Month < 5),][
-  ,.(NONGST = mean(Temp), NONGSP = sum(Prep), NONGSPET = sum(PET), NONGSCMI = sum(CMI), NONGSCO2 = mean(CO2)), 
-  by = c("PlotID", "Year")]
+ GSClimate <- climateData[Year>=1985 & Year<= 2011 & Month<=9 & Month >= 5,][
+   ,.(GST = mean(Temp), GSP = sum(Prep), GSPET = sum(PET), GSCMI = sum(CMI), GSCO2 = mean(CO2)), by = c("PlotID", "Year")]
+ 
+ NONGSClimate <- climateData[Year>=1985 & Year<= 2011 & (Month > 9 | Month < 5),][
+   ,.(NONGST = mean(Temp), NONGSP = sum(Prep), NONGSPET = sum(PET), NONGSCMI = sum(CMI), NONGSCO2 = mean(CO2)), 
+   by = c("PlotID", "Year")]
 
 allClimates <- setkey(AnnualClimate, PlotID, Year)[setkey(GSClimate, PlotID, Year), nomatch = 0]
 allClimates <- setkey(allClimates, PlotID, Year)[setkey(NONGSClimate, PlotID, Year), nomatch = 0]
-
-
 
 for(i in 1:nrow(inputData)){
   plotclimate <- allClimates[PlotID == inputData$PlotID[i],]
@@ -76,7 +74,8 @@ for(i in 1:nrow(inputData)){
 write.csv(inputData, file.path(workPath, "data", "plotclimates.csv"), row.names=F)
 
 workPath <- "~/GitHub/Climate_Growth"
-analysesData <- read.csv(file.path(workPath, "data", "newAllDataRescaledComp.csv"), header = TRUE,
+analysesData <- read.csv(file.path(workPath, "data", "AllCensus_PositiveGrowth_RandomPlotADTree",
+                                   "finalData.csv"), header = TRUE,
                          stringsAsFactors = FALSE) %>% data.table
 
 thedata <- setkey(analysesData, PlotID, IniYear, FinYear)[setkey(inputData, PlotID, IniYear, FinYear),
