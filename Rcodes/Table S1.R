@@ -2,27 +2,28 @@ rm(list = ls())
 library(data.table); library(ggplot2); library(SpaDES)
 library(nlme); library(dplyr);library(MuMIn); library(gridExtra)
 
+
 workPath <- "~/GitHub/Climate_Growth"
 
-analysesData <- read.csv(file.path(workPath, "data", "newAllDataRescaledComp.csv"), header = TRUE,
-                         stringsAsFactors = FALSE) %>%
-  data.table
+selectionMethod <- "AllCensus_PositiveGrowth_RandomPlotADTree"
+
+
+analysesData <- fread(file.path(workPath, "data", selectionMethod, "finalData.csv"))
 analysesData <- analysesData[allCensusLiveTree == "yes" & positiveGrowthTree == "yes",]
-studySpecies <- c("Jack pine", "Trembling aspen",
-                  "Black spruce", "Other species")
+studySpecies <- c("All species", "Jack pine", "Trembling aspen",
+                  "Black spruce", "Minor species")
 
 for(indispecies in studySpecies){
   speciesdata <- analysesData[Species == indispecies,.(PlotID, uniTreeID, ABGR = BiomassGR,
-                                                        logABGR = log(BiomassGR), 
                                                          DBH = IniDBH, logDBH = log(IniDBH),
-                                                        SA = IniFA+2.5, logSA = log(IniFA+2.5),
-                                                        Year, IntraH, logIntraH = log(IntraH+1),
-                                                        InterH, logInterH = log(InterH+1), 
+                                                        SA = IniFA+2.5, 
+                                                        Year, IntraH, H, 
+                                                        InterH, 
                                                          ATA, GSTA, NONGSTA,
                                                          APA, GSPA, NONGSPA,
                                                          ACMIA, GSCMIA, NONGSCMIA,
                                                          ACO2A, GSCO2A, NONGSCO2A)]
-  tempcolnames <- names(speciesdata)[3:25]
+  tempcolnames <- names(speciesdata)[3:22]
   speciesdata <- reshape(data = speciesdata, varying = tempcolnames,
                          v.names = "Values",
                          timevar = "tempV",
@@ -34,18 +35,10 @@ for(indispecies in studySpecies){
   speciesdata[,Variable:=tempcolnames]
   speciesdata[, summary := paste(mean, " ± ", sd, "(",
                                                 min, " to ", max, ")", sep = "")]
-  speciesdata[Variable %in% c("logABGR", "logDBH", "logSA"), summary:=paste(round(exp(mean), 2), 
-                                                                            "(", paste(round(exp(mean-sd), 2)),
-                                                                            " to ", paste(round(exp(mean+sd), 2)),
-                                                                            ")", sep = "")]
-  speciesdata[Variable %in% c("logIntraH", "logInterH"), summary:=paste(round(exp(mean)-1, 2), 
-                                                                            "(", paste(round(exp(mean-sd)-1, 2)),
-                                                                            " to ", paste(round(exp(mean+sd)-1, 2)),
-                                                                            ")", sep = "")]
-  
+
   speciesdata <- speciesdata[,.(tempV, Variable, summary)]
   names(speciesdata)[3] <- indispecies
-  if(indispecies == "Jack pine"){
+  if(indispecies == "All species"){
     Table1Output <- speciesdata
     rm(speciesdata)
   } else {

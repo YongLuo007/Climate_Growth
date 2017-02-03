@@ -71,14 +71,14 @@ slopestexts1[ClimateName == "allCO2", labels := paste("slope:~", Value, "~ppm~ye
 slopestexts1[, ':='(ClimateName = factor(ClimateName, levels = c("temperature", "allCMI", "allP", "allPET", "allCO2")),
                     Season=factor(Season, levels = c("Whole year", "Growing season", "Non-growing season")))]
 
-anewlaberller <- list("temperature" = expression(paste("Temperature (", degree, "C)")),
-                      "allCMI" = "CMI (mm)",
-                      "allP" = "Precipitation (mm)",
-                      "allPET" = "PET (mm)",
-                      'allCO2'= expression(paste("C", O[2], " (ppm)")))
-anewlaberller2 <- list("Whole year" = "Annual anomaly",
-                      "Growing season" = "Growing-season anomaly", 
-                      "Non-growing season" = "Nongrowing-season anomaly")
+anewlaberller <- list("temperature" = expression(atop("Temperature anomaly", paste("(", degree, "C)"))),
+                      "allCMI" = expression(atop("CMI anomaly", "(mm)")),
+                      "allP" = expression(atop("Precipitation anomaly", "(mm)")),
+                      "allPET" = expression(atop("PET anomaly", "(mm)")),
+                      'allCO2'= expression(atop(paste("C", O[2], " anomaly"), "(ppm)")))
+anewlaberller2 <- list("Whole year" = "Annual",
+                      "Growing season" = "Growing season", 
+                      "Non-growing season" = "Non-growing season")
 figurea_labeller <- function(variable,value){
   if(variable == "ClimateName"){
     return(anewlaberller[value])
@@ -105,7 +105,8 @@ FigureA <- ggplot(data = allClimateData[ClimateName != "allPET", ],
         axis.title.y = element_blank(),
         axis.text = element_text(size = 12),
         axis.title.x = element_text(size = 15, vjust = 2),
-        strip.text = element_text(size = 15),
+        strip.text.y = element_text(size = 15),
+        strip.text.x = element_text(size = 15, face = "italic"),
         strip.background = element_blank())
 ggsave(file.path(workPath, "TablesFigures", "Figure S4. regional climate changes.png"), FigureA,
        width = 12, height = 10)

@@ -106,22 +106,12 @@ if(as.character(Sys.info()[6]) == "yonluo"){
 } else {
   workPath <- file.path("", "home", "yonluo","Climate_Growth")
 }
-
 selectionMethod <- "AllCensus_PositiveGrowth_RandomPlotADTree"
-
 analysesData <- fread(file.path(workPath, "data", selectionMethod, "finalData.csv"))
-
 analysesData <- analysesData[allCensusLiveTree == "yes" & positiveGrowthTree == "yes",]
-
-
-
 studySpecies <- c("All species", "Jack pine", "Trembling aspen", "Black spruce", "Minor species")
-source(file.path(workPath, "Rcodes", "Rfunctions", "mixedModelSelection.R"))
 allHbestClimateModels <- list()
 indiHbestClimateModels <- list()
-allHbestIDVs <- list()
-indiHbestIDVs <- list()
-
 climates <- c("ATA", "GSTA", "NONGSTA",
               "ACMIA", "GSCMIA", 
               "ACO2A")
@@ -136,43 +126,27 @@ for(indispecies in studySpecies){
                       logIntraHctd = log(IntraH+1)-mean(log(IntraH+1)),
                       logInterHctd = log(InterH+1)-mean(log(InterH+1)),
                       logSActd = log(IniFA+2.5)-mean(log(IniFA+2.5)))]
-    allHoutput <- mixedModelSelection(DV = "logY", 
-                                      IDV = c("logDBHctd", "Climatectd", "logHctd",
-                                              "logSActd"),
-                                      maxInteraction = 2,
-                                      ICTerm = "AIC",
-                                      ICCut = 2,
-                                      data = speciesData,
-                                      random = ~1|PlotID/uniTreeID, 
-                                      control = lmeControl(opt="optim", maxIter=50000, msMaxIter = 50000))
-    allHbestFormula <- as.formula(paste("logY~", paste(allHoutput$bestIDV, collapse = "+")))
-    allHbestModel <- lme(fixed = allHbestFormula,
+    allHbestModel <- lme(logY~logDBHctd+logSActd+Climatectd+logHctd+logDBHctd:logSActd+
+                           logDBHctd:logHctd+logDBHctd:Climatectd+logSActd:logHctd+
+                           logSActd:Climatectd+Climatectd:logHctd,
+                         
                          data = speciesData,
                          random = ~1|PlotID/uniTreeID, 
                          control = lmeControl(opt="optim", maxIter=50000, msMaxIter = 50000))
     
-    indiHoutput <- mixedModelSelection(DV = "logY", 
-                                       IDV = c("logDBHctd", "Climatectd", "logIntraHctd",
-                                               "logInterHctd",
-                                               "logSActd"),
-                                       maxInteraction = 2,
-                                       ICTerm = "AIC",
-                                       ICCut = 2,
-                                       data = speciesData,
-                                       random = ~1|PlotID/uniTreeID, 
-                                       control = lmeControl(opt="optim", maxIter=50000, msMaxIter = 50000))
-    indiHbestFormu <- as.formula(paste("logY~", paste(indiHoutput$bestIDV, collapse = "+")))
-    indiHbestModel <- lme(fixed = indiHbestFormu,
+    indiHbestModel <- lme(logY~logDBHctd+logSActd+Climatectd+logIntraHctd+logInterHctd+
+                            logDBHctd:logSActd+logDBHctd:Climatectd+logDBHctd:logIntraHctd+
+                            logDBHctd:logInterHctd+logSActd:Climatectd+logSActd:logIntraHctd+
+                            logSActd:logInterHctd+Climatectd:logIntraHctd+Climatectd:logInterHctd+
+                            logIntraHctd:logInterHctd,
                           data = speciesData,
                           random = ~1|PlotID/uniTreeID, 
                           control = lmeControl(opt="optim", maxIter=50000, msMaxIter = 50000))
     
     allHbestClimateModels[[paste(indispecies, "_", indiclimate, sep = "")]] <- allHbestModel
     indiHbestClimateModels[[paste(indispecies, "_", indiclimate, sep = "")]] <- indiHbestModel
-    allHbestIDVs[[paste(indispecies, "_", indiclimate, sep = "")]] <- allHoutput$bestIDV
-    indiHbestIDVs[[paste(indispecies, "_", indiclimate, sep = "")]] <- indiHoutput$bestIDV
     cat("Species", indispecies, "and climate", indiclimate, "is done. \n")
-    rm(allHoutput, allHbestFormula, allHbestModel, indiHoutput, indiHbestFormu, indiHbestModel)
+    rm(allHbestModel, indiHbestModel)
   }
 }
 allHFixedCoeff <- lapply(allHbestClimateModels, function(x){
@@ -182,7 +156,7 @@ indiHFixedCoeff <- lapply(indiHbestClimateModels, function(x){
   data.table(summary(x)$tTable, keep.rownames = TRUE)[, ':='(marR2 = r.squaredGLMM(x)[1],
                                                              conR2 = r.squaredGLMM(x)[2])]})
 save.image(file.path(workPath, "data", selectionMethod,
-                     "BestClimateModels_BA.RData"))
+                     "fullClimateModels_BA.RData"))
 
 
 

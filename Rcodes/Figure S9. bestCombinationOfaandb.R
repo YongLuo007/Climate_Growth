@@ -11,7 +11,8 @@ a <- melt(output, id.vars = c("Species", "sizeWeight", "disWeight"),
           measure.vars = c("HAIC"),
           value.name = "Value")
 a <- rbind(a[1,][,Species := ""], a)
-a[,':='(Species = factor(Species, levels = c("All species", "", "Jack pine",
+a[Species == "All species", Species:="All trees"]
+a[,':='(Species = factor(Species, levels = c("All trees", "", "Jack pine",
                                              "Trembling aspen", "Black spruce",
                                              "Minor species")))]
 
@@ -20,10 +21,10 @@ a[, scaledValue:=(Value-minvalue)/(maxvalue-minvalue)]
 a[Species == "", scaledValue:="0"]
 a[,sizeWeight:=as.numeric(sizeWeight)]
 minvaluepoints <- a[Value == minvalue,][,':='(sizeWeight=as.numeric(sizeWeight))]
-rectTable <- data.table(Species = factor(c("All species", "Jack pine", 
+rectTable <- data.table(Species = factor(c("All trees", "Jack pine", 
                                                 "Trembling aspen", "Black spruce",
                                                 "Minor species"),
-                                         levels = c("All species", "", "Jack pine",
+                                         levels = c("All trees", "", "Jack pine",
                                                     "Trembling aspen", "Black spruce",
                                                     "Minor species")))
 rectTable[,':='(disWeight = 0, xend = 0.9, sizeWeight = 6.5, yend = 8)]
@@ -49,8 +50,8 @@ figure <- ggplot(data=a[Species != "",], aes(x = disWeight, y = sizeWeight))+
   geom_text(data = betaTable[Species != "",], 
           aes(x = disWeight, y = sizeWeight, label = alpha),
           hjust = 0, size = 6, parse = TRUE)+
-  scale_y_continuous(name = expression(paste("Cross-forests assymetric competition coefficient (", alpha, ")")))+
-  scale_x_continuous(name = expression(paste("Crowdedness competition coefficient (", beta, ")")))+
+  scale_y_continuous(name = expression(paste("Cross-stands assymetric coefficient (", alpha, ")")))+
+  scale_x_continuous(name = expression(paste("Crowdedness coefficient (", beta, ")")))+
   scale_fill_continuous(name = "AIC\n", breaks = c(0, 1), labels = c("Minimum\n", "Maximum"))+
   theme_bw()+
   theme(panel.grid = element_blank(),
@@ -66,6 +67,6 @@ figure <- ggplot(data=a[Species != "",], aes(x = disWeight, y = sizeWeight))+
         strip.text = element_text(size = 20, hjust = 0),
         strip.background = element_rect(colour = "white", fill = "white"))
 
- ggsave(file = file.path("~/GitHub/Climate_Growth/TablesFigures/bestdistanceweight.png"),
+ ggsave(file = file.path("~/GitHub/Climate_Growth/TablesFigures/Figure S9. bestdistanceweight.png"),
         figure, width = 12, height = 14)
 

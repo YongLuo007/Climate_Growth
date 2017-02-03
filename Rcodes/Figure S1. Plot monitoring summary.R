@@ -4,11 +4,10 @@ library(nlme); library(dplyr);library(MuMIn); library(gridExtra)
 
 workPath <- "~/GitHub/Climate_Growth"
 
-analysesData <- read.csv(file.path(workPath, "data", "newAllDataRescaledComp.csv"), header = TRUE,
-                         stringsAsFactors = FALSE) %>%
-  data.table
+analysesData <- fread(file.path(workPath, "data", "AllCensus_PositiveGrowth_RandomPlotADTree",
+                                   "finalData.csv"))
 analysesData <- analysesData[allCensusLiveTree == "yes" & positiveGrowthTree == "yes",]
-studySpecies <- c("JP", "BS", "TA")
+
 allspeciesdata <- data.table::copy(analysesData)
 FigureS1Data <- data.table(PlotID = character(), Year = numeric(), IniYear = numeric(),
                            FinYear = numeric())
@@ -60,8 +59,7 @@ FigureS1_a <- ggplot(data = subFigureS1, aes(x = Year, y = newPlotID))+
         legend.text = element_text(size = 9))
 
 
-allspeciesdatanew <- rbindlist(list(data.table::copy(analysesData)[,Species:="All species"],
-                                    analysesData))
+allspeciesdatanew <- data.table::copy(analysesData)
 NofTreeData <- allspeciesdatanew[,.(NofTree=length(unique(uniTreeID)),
                                  IniYear = min(IniYear),
                                  FinYear = max(FinYear)), by = c("PlotID", "Species")]
@@ -71,25 +69,28 @@ for(i in 1:nrow(NofTreeData)){
                         Year = seq(NofTreeData$IniYear[i], NofTreeData$FinYear[i], by = 1))
   figureS1_bData <- rbind(figureS1_bData, adddata)
 }
-figureS1_bData <- figureS1_bData[,.(NofTree = sum(NofTree)), by = c("Year", "Species")]  
+figureS1_bData <- figureS1_bData[,.(NofTree = sum(NofTree)), by = c("Year", "Species")]
+figureS1_bData[Species == "Minor species", Species:="Minor species group"]
+studySpecies <- c("All species", "Jack pine", "Trembling aspen",
+                  "Black spruce", "Minor species group")
 figureS1_bData[,Species:=factor(Species, 
-                                levels = c("All species", "Jack pine", "Trembling aspen",
-                                           "Black spruce", "Other species"))]
+                                levels = studySpecies)]
 summaryPlot <- allspeciesdatanew[,.(NofPlot = length(unique(PlotID)), NofTree = length(unique(uniTreeID)),
                                     NofObs = length(IniBA)), by = Species]
-summaryPlot[, Species:=factor(Species, levels = c("All species", "Jack pine", "Trembling aspen",
-                         "Black spruce", "Other species"))]
-summaryPlot[,legendTexts:=paste(Species, ": ", NofPlot, " plots, ", NofTree, " trees, ",
+summaryPlot[Species == "Minor species", Species:="Minor species group"]
+summaryPlot[Species == "All species", Species:="All trees"]
+# summaryPlot[, Species:=factor(Species, levels = studySpecies)]
+summaryPlot[,legendTexts:=paste("\n", Species, ": \n", NofPlot, " plots, ", NofTree, " trees, ",
                                 NofObs, " observations.", sep = "")]
 
-FigureS1_b <- ggplot(data = figureS1_bData[Species != "All species",], aes(x = Year, y = NofTree))+
+FigureS1_b <- ggplot(data = figureS1_bData, aes(x = Year, y = NofTree))+
   geom_line(aes(group = Species, col = Species), size = 1)+
-  scale_y_continuous(name = "Number of tree", limits = c(0, 13000), breaks = seq(0, 10000, by = 2000))+
+  scale_y_continuous(name = "Number of tree", limits = c(0, 15000), breaks = seq(0, 10000, by = 2000))+
   scale_x_continuous(name = "Year", limits = c(1985, 2012), breaks = seq(1985, 2011, by = 5))+
-  scale_color_manual(name = "Species", values = c("red", "blue", "green", "pink"),
-                     labels = summaryPlot$legendTexts[2:5])+
-  guides(colour  = guide_legend(nrow = 2))+
-  annotate("text", x = 1985, y = 13000, label = "b", size = 10)+
+  scale_color_manual(name = "Species", values = c("white", "red", "blue", "green", "pink"),
+                     labels = summaryPlot$legendTexts)+
+  guides(colour  = guide_legend(nrow = 3))+
+  annotate("text", x = 1985, y = 15000, label = "b", size = 10)+
   theme_bw()+
   theme(panel.grid.major = element_blank(),
         panel.grid.minor = element_blank(),
@@ -99,6 +100,9 @@ FigureS1_b <- ggplot(data = figureS1_bData[Species != "All species",], aes(x = Y
         axis.text = element_text(size = 12),
         axis.title = element_text(size = 15),
         legend.position = c(0.53, 0.85),
+        legend.background = element_rect(colour = "black"),
+        legend.title = element_blank(),
+        legend.key = element_rect(colour = "white"),
         legend.title = element_text(size = 10),
         legend.text = element_text(size = 9))
 
@@ -112,7 +116,7 @@ clearPlot()
 plotlayout <- rbind(c(1), c(2))
 FigureS1 <- grid.arrange(FigureS1_a_Grob, FigureS1_b_Grob, 
                   layout_matrix = plotlayout)
-ggsave(file = file.path(workPath, "TablesFigures", "FigureS1_MonitoringSummary.png"), FigureS1,
+ggsave(file = file.path(workPath, "TablesFigures", "Figure S1. MonitoringSummary.png"), FigureS1,
        width = 9, height = 7)
 
 

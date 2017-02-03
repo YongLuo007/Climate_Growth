@@ -89,13 +89,15 @@ for(indispecies in studySpecies){
   }
 }
 
+output[Species == "Minor species", Species:="Minor species group"]
+output[Species == "All species", Species:="All trees"]
 
-output[,':='(Species = factor(Species, studySpecies),
+studySpecies <- c("All trees", studySpecies[2:4], "Minor species group")
+output[,':='(Species = factor(Species, levels = studySpecies),
              Direction = factor(Direction, 
                                 levels = c("mainTrend", "changewithH")))]
 
-
-segmenttable <- data.table(Species = "All species", 
+segmenttable <- data.table(Species = "All trees", 
                            Direction = unique(output$Direction),
                            x = -Inf, xend = -Inf, y = -Inf, yend = Inf)
 
@@ -111,7 +113,7 @@ segmenttable[,':='(Species = factor(Species,
                    Direction = factor(Direction, 
                                       levels = c("mainTrend", "changewithH")))]
 
-texttable <- data.table(Species = "All species", 
+texttable <- data.table(Species = "All trees", 
                         Direction = unique(output$Direction),
                         x = 1989, y = Inf)
 texttable[,':='(Species = factor(Species, 
@@ -120,8 +122,32 @@ texttable[,':='(Species = factor(Species,
                                    levels = c("mainTrend", "changewithH")))]
 texttable[,texts := letters[as.numeric(Direction)]]
 
+newlabels1 <- list("All trees" = "All trees",
+                   "Jack pine" = "Jack pine",
+                   "Trembling aspen" = "Trembling aspen",
+                   "Black spruce" = "Black spruce",
+                   "Minor species group" = "Minor species group")
+newlabels2 <- list("mainTrend" = expression(atop("Plot-level aboveground biomass growth rate",
+                                                 paste("(Kg ", ha^{-1}, " ", year^{-1}, ")"))),
+                   "changewithH" = expression(atop("Tree-level aboveground biomass growth rate",
+                                                   paste("(Kg ", year^{-1}, ")"))))
+
+
+figure_labeller <- function(variable,value){
+  if(variable == "Species"){
+    return(newlabels1[value])
+  } else if (variable == "Direction"){
+    return(newlabels2[value])
+  } 
+}
+output[Direction == "mainTrend", ':='(PredictedABGR = PredictedABGR*10000/500,
+                                      PredictedABGR_Lower = PredictedABGR_Lower*10000/500,
+                                      PredictedABGR_Upper = PredictedABGR_Upper*10000/500)]
+
 figure <- ggplot(data = output[Direction != "mainTrend"], aes(x = Year, y = PredictedABGR))+
-  facet_grid(Direction~Species, scale = "free_y",  drop = TRUE)+
+  facet_grid(Direction~Species, scale = "free_y",  drop = TRUE,
+             switch = "y",
+             labeller = figure_labeller)+
   geom_line(aes(group = CompetitionIntensity, col = CompetitionIntensity), 
             size = 1)+
   geom_ribbon(data = output[Direction == "mainTrend", ], 
@@ -131,7 +157,7 @@ figure <- ggplot(data = output[Direction != "mainTrend"], aes(x = Year, y = Pred
             aes(x = Year, y = PredictedABGR,
                 linetype = as.factor(overallSignificant)),
             col = "black", size = 1, show.legend = FALSE)+
-  scale_y_continuous(name = expression(paste("Aboveground biomass growth rate (Kg ", year^{-1}, ")")))+
+  # scale_y_continuous(name = expression(paste("Aboveground biomass growth rate (Kg ", year^{-1}, ")")))+
   scale_x_continuous(name = "Year", breaks = seq(1990, 2010, by = 5))+
   scale_color_continuous(name = "Competition \nintensity",
                        low = "blue", high = "red", breaks = c(3, 100),
@@ -144,10 +170,11 @@ figure <- ggplot(data = output[Direction != "mainTrend"], aes(x = Year, y = Pred
         panel.grid.minor = element_blank(),
         panel.border = element_blank(),
         axis.text = element_text(size = 13),
-        axis.title = element_text(size = 16),
-        strip.text.y = element_blank(),
-        strip.background = element_rect(colour = "white"),
-        strip.text.x = element_text(size = 15),
+        axis.title.x = element_text(size = 16),
+        axis.title.y = element_blank(),
+        strip.background = element_rect(colour = "white", fill = "white"),
+        strip.text.x = element_text(size = 15, face = "italic"),
+        strip.text.y = element_text(size = 15),
         # legend.direction = "horizontal",
         legend.background = element_rect(colour = "black"),
         legend.position = c(0.85, 0.35),
@@ -155,8 +182,8 @@ figure <- ggplot(data = output[Direction != "mainTrend"], aes(x = Year, y = Pred
         legend.title = element_text(size = 15))
 workPath <- "~/GitHub/Climate_Growth"
 ggsave(file = file.path(workPath, "TablesFigures", 
-                        paste("Figure 3. temporal trends with H", selectionMethod, ".png")),
-       figure,  width = 11, height = 9.5)
+                        paste("Figure 2. temporal trends with H", selectionMethod, ".png")),
+       figure,  width = 11, height = 10)
 
 
 
