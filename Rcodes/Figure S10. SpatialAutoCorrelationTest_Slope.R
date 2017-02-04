@@ -15,7 +15,7 @@ for(indispecies in studySpecies){
   speciesData[,':='(logY = log(BiomassGR), 
                     logDBHctd = log(IniDBH)-mean(log(IniDBH)), 
                     Yearctd = 0,
-                    logHctd = log(H+1)-mean(log(H+1)),
+                    logHctd = log(H)-mean(log(H)),
                     logSActd = log(IniFA+2.5)-mean(log(IniFA+2.5)))]
   
   speciesData$fittelogY <- predict(theallHmodel, newdata = speciesData,
@@ -29,7 +29,7 @@ for(indispecies in studySpecies){
                                 keep.rownames = TRUE)
     plotcoeffs <- plotcoeffs[rn == "Year",.(Species = indispecies,
                                             PlotID = indiplot, 
-                                            slope = (10000/500)*(exp(Estimate)-1),
+                                            slope = (length(unique(indiplotdata$uniTreeID)))*(exp(Estimate)-1),
                                             P = `Pr(>|t|)`)]
     if(indispecies == studySpecies[1] & indiplot == selectedplots[1]){
       allslopes <- plotcoeffs
@@ -65,7 +65,7 @@ studyAreaall <- fortify(studyArea, region = "id") %>% data.table
 
 allslopesOg <- data.table::copy(allslopes)
 allslopes <- data.table::copy(allslopesOg)
-allslopes <- allslopes[slope<=10,]
+allslopes <- allslopes[slope>=-20 & slope<=15,]
 makeupRaster <- data.frame(expand.grid(y = seq(1.5, 2.5, length = 50),
                                        x = seq(min(allslopes$slope),
                                                max(allslopes$slope),
@@ -96,10 +96,10 @@ legendPlot <- ggplot(data = data.frame(x = c(min(allslopes$slope),
                                                         length = 7), 2))),
             aes(x = x, y = y, label = texts), size = 5)+
   geom_text(data = data.frame(y = 3.5, x = min(allslopes$slope),
-                              texts = "AFC~of~plot-level~ABGR"),
-            aes(x = x, y = y, label = texts), parse = TRUE, hjust = 0, size = 5)+
+                              texts = "Annual fractional change in \nplot-level aboveground biomass growth rate"),
+            aes(x = x, y = y, label = texts), hjust = 0, size = 5)+
   geom_text(data = data.frame(y = 3, x = min(allslopes$slope),
-                              texts = paste("(kg~ha^{-1}~year^{-2})")),
+                              texts = paste("(kg~year^{-2}~per~plot)")),
             aes(x = x, y = y, label = texts), parse = TRUE, hjust = 0, size = 5)+
   theme_bw()+
   theme(panel.grid.major = element_blank(),
@@ -158,9 +158,6 @@ for(indispecies in studySpecies){
     allSpeciesLocations <- rbind(allSpeciesLocations, indispeciesLocations)
   }
 }
-
-
-
 
 plotlayout <- rbind(c(1,2), c(3, 4), c(5, 6))
 a <- grid.arrange(allfigures[[1]], legendPlot, allfigures[[2]], allfigures[[3]],

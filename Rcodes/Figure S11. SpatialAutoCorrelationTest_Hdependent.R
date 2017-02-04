@@ -62,8 +62,7 @@ MBProvince <- canadamap[canadamap@data$NAME  == "Manitoba", ]
 studyArea <- gIntersection(boreal, MBProvince)
 studyAreaall <- fortify(studyArea, region = "id") %>% data.table
 
-mantelTestResults <- list()
-allfigures <- list()
+
 allInteractionsOg <- data.table::copy(allInteractions)
 allInteractions <- allInteractions[Interaction<=0.01,]
 makeupRaster <- data.frame(expand.grid(y = seq(1.5, 2.5, length = 50),
@@ -75,7 +74,7 @@ legendPlot <- ggplot(data = data.frame(x = c(min(allInteractions$Interaction),
                                              max(allInteractions$Interaction)),
                                        y = c(0, 5)), aes(x = x, y = y)) +
   geom_point(col = "white")+
-  geom_rect(data = data.frame(x = -Inf, xmax = Inf, y = 0.7, ymax = 3.8), 
+  geom_rect(data = data.frame(x = -Inf, xmax = Inf, y = 0.7, ymax = 4), 
             aes(xmin = x, xmax = xmax, ymin = y, ymax = ymax), col = "black", fill = "white")+
   geom_raster(data = makeupRaster, aes(x = x, y = y, fill = x))+
   scale_fill_gradient2(low="red", mid = "gray", high = "green", guide = "none")+
@@ -96,9 +95,9 @@ legendPlot <- ggplot(data = data.frame(x = c(min(allInteractions$Interaction),
                                                         length = 7), 3))),
             aes(x = x, y = y, label = texts), size = 5)+
   geom_text(data = data.frame(y = 3.5, x = min(allInteractions$Interaction),
-                              texts = "Change~of~AFC~of~ABGR~at~tree-level~with~competition"),
-            aes(x = x, y = y, label = texts), parse = TRUE, hjust = 0, size = 5)+
-  geom_text(data = data.frame(y = 3, x = min(allInteractions$Interaction),
+                              texts = "Change of annual fractional change in \ntree-level aboveground biomass growth rate \nwith competition"),
+            aes(x = x, y = y, label = texts), hjust = 0, size = 5)+
+  geom_text(data = data.frame(y = 2.8, x = min(allInteractions$Interaction),
                               texts = paste("(kg~year^{-2}~per~unit~H)")),
             aes(x = x, y = y, label = texts), parse = TRUE, hjust = 0, size = 5)+
   theme_bw()+
@@ -113,7 +112,8 @@ legendPlot <- ggplot(data = data.frame(x = c(min(allInteractions$Interaction),
   
 
 k <- 1
-
+mantelTestResults <- list()
+allfigures <- list()
 for(indispecies in studySpecies){
   indispeciesInteractions <- allInteractions[Species==indispecies,][,Species:=NULL]
   allInteractionswithLocation <- setkey(locations, PlotID)[setkey(indispeciesInteractions, PlotID),
