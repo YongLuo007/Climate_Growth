@@ -17,19 +17,32 @@ for(indispecies in studySpecies){
                     Yearctd = 0,
                     logHctd = log(H)-mean(log(H)),
                     logSActd = log(IniFA+2.5)-mean(log(IniFA+2.5)))]
-  
   speciesData$fittelogY <- predict(theallHmodel, newdata = speciesData,
                                    level = 0, se.fit = FALSE)
-  speciesData[, logYResiduals:=logY-fittelogY]
+  plotRandom <- as.data.table(random.effects(theallHmodel)$PlotID,
+                              keep.rownames = TRUE)
+  names(plotRandom) <- c("PlotID", "PlotEffect")
+  treeRandom <- as.data.table(random.effects(theallHmodel)$uniTreeID,
+                              keep.rownames = TRUE)
+  names(treeRandom) <- c("uniTreeID", "TreeEffect")
+  treeRandom[, uniTreeID:=unlist(lapply(uniTreeID, 
+                                  function(s) unlist(strsplit(s, split = "/", fixed = T))[2]))]
+  speciesData <- setkey(speciesData, PlotID)[setkey(plotRandom, PlotID),
+                                             nomatch = 0]
+  speciesData <- setkey(speciesData, uniTreeID)[setkey(treeRandom, uniTreeID),
+                                             nomatch = 0]
+  
+  speciesData[, logYResiduals:=logY-fittelogY-PlotEffect-TreeEffect]
+  
   selectedplots <- unique(speciesData$PlotID)
   for(indiplot in selectedplots){
     indiplotdata <- speciesData[PlotID == indiplot,]
-    linearRegression <- lm(logYResiduals~Year+Year:logHctd, data = indiplotdata)
+    linearRegression <- lm(logYResiduals~Year+logSActd:Year+Year:logHctd, data = indiplotdata)
     plotcoeffs <- as.data.table(summary(linearRegression)$coefficients,
                                 keep.rownames = TRUE)
     plotcoeffs <- plotcoeffs[rn == "Year",.(Species = indispecies,
                                             PlotID = indiplot, 
-                                            slope = (length(unique(indiplotdata$uniTreeID)))*(exp(Estimate)-1),
+                                            slope = Estimate,
                                             P = `Pr(>|t|)`)]
     if(indispecies == studySpecies[1] & indiplot == selectedplots[1]){
       allslopes <- plotcoeffs
@@ -65,7 +78,6 @@ studyAreaall <- fortify(studyArea, region = "id") %>% data.table
 
 allslopesOg <- data.table::copy(allslopes)
 allslopes <- data.table::copy(allslopesOg)
-allslopes <- allslopes[slope>=-20 & slope<=15,]
 makeupRaster <- data.frame(expand.grid(y = seq(1.5, 2.5, length = 50),
                                        x = seq(min(allslopes$slope),
                                                max(allslopes$slope),
@@ -75,7 +87,7 @@ legendPlot <- ggplot(data = data.frame(x = c(min(allslopes$slope),
                                              max(allslopes$slope)),
                                        y = c(0, 5)), aes(x = x, y = y)) +
   geom_point(col = "white")+
-  geom_rect(data = data.frame(x = -Inf, xmax = Inf, y = 0.7, ymax = 3.8), 
+  geom_rect(data = data.frame(x = -Inf, xmax = Inf, y = 0.7, ymax = 3.3), 
             aes(xmin = x, xmax = xmax, ymin = y, ymax = ymax), col = "black", fill = "white")+
   geom_raster(data = makeupRaster, aes(x = x, y = y, fill = x))+
   scale_fill_gradient2(low="red", mid = "gray", high = "green", guide = "none")+
@@ -95,12 +107,9 @@ legendPlot <- ggplot(data = data.frame(x = c(min(allslopes$slope),
                                                         max(allslopes$slope),
                                                         length = 7), 2))),
             aes(x = x, y = y, label = texts), size = 5)+
-  geom_text(data = data.frame(y = 3.5, x = min(allslopes$slope),
-                              texts = "Annual fractional change in \nplot-level aboveground biomass growth rate"),
-            aes(x = x, y = y, label = texts), hjust = 0, size = 5)+
   geom_text(data = data.frame(y = 3, x = min(allslopes$slope),
-                              texts = paste("(kg~year^{-2}~per~plot)")),
-            aes(x = x, y = y, label = texts), parse = TRUE, hjust = 0, size = 5)+
+                              texts = "Effect of Year on residuals"),
+            aes(x = x, y = y, label = texts), hjust = 0, size = 7)+
   theme_bw()+
   theme(panel.grid.major = element_blank(),
         panel.grid.minor = element_blank(),
@@ -116,7 +125,7 @@ mantelTestResults <- list()
 allfigures <- list()
 
 for(indispecies in studySpecies){
-  indispeciesslopes <- allslopes[Species==indispecies,][,Species:=NULL]
+  indispeciesslopes <- allslopesOg[Species==indispecies,][,Species:=NULL]
   allslopeswithLocation <- setkey(locations, PlotID)[setkey(indispeciesslopes, PlotID),
                                                      nomatch = 0]
   plot_dists <- dist(cbind(allslopeswithLocation$Longitude,

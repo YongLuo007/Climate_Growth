@@ -23,12 +23,12 @@ for(indispecies in studySpecies){
   selectedplots <- unique(speciesData$PlotID)
   for(indiplot in selectedplots){
     indiplotdata <- speciesData[PlotID == indiplot,]
-    linearRegression <- lm(logYResiduals~Year+Year:logHctd, data = indiplotdata)
+    linearRegression <- lm(logYResiduals~Year+logSActd:Year+Year:logHctd, data = indiplotdata)
     plotcoeffs <- as.data.table(summary(linearRegression)$coefficients,
                                 keep.rownames = TRUE)
     plotcoeffs <- plotcoeffs[rn == "Year:logHctd",.(Species = indispecies,
                                             PlotID = indiplot, 
-                                            Interaction = exp(Estimate)-1,
+                                            Interaction = Estimate,
                                             P = `Pr(>|t|)`)]
     if(indispecies == studySpecies[1] & indiplot == selectedplots[1]){
       allInteractions <- plotcoeffs
@@ -64,7 +64,6 @@ studyAreaall <- fortify(studyArea, region = "id") %>% data.table
 
 
 allInteractionsOg <- data.table::copy(allInteractions)
-allInteractions <- allInteractions[Interaction<=0.01,]
 makeupRaster <- data.frame(expand.grid(y = seq(1.5, 2.5, length = 50),
                                   x = seq(min(allInteractions$Interaction),
                                           max(allInteractions$Interaction),
@@ -74,7 +73,7 @@ legendPlot <- ggplot(data = data.frame(x = c(min(allInteractions$Interaction),
                                              max(allInteractions$Interaction)),
                                        y = c(0, 5)), aes(x = x, y = y)) +
   geom_point(col = "white")+
-  geom_rect(data = data.frame(x = -Inf, xmax = Inf, y = 0.7, ymax = 4), 
+  geom_rect(data = data.frame(x = -Inf, xmax = Inf, y = 0.7, ymax = 3.3), 
             aes(xmin = x, xmax = xmax, ymin = y, ymax = ymax), col = "black", fill = "white")+
   geom_raster(data = makeupRaster, aes(x = x, y = y, fill = x))+
   scale_fill_gradient2(low="red", mid = "gray", high = "green", guide = "none")+
@@ -94,12 +93,9 @@ legendPlot <- ggplot(data = data.frame(x = c(min(allInteractions$Interaction),
                                                         max(allInteractions$Interaction),
                                                         length = 7), 3))),
             aes(x = x, y = y, label = texts), size = 5)+
-  geom_text(data = data.frame(y = 3.5, x = min(allInteractions$Interaction),
-                              texts = "Change of annual fractional change in \ntree-level aboveground biomass growth rate \nwith competition"),
-            aes(x = x, y = y, label = texts), hjust = 0, size = 5)+
-  geom_text(data = data.frame(y = 2.8, x = min(allInteractions$Interaction),
-                              texts = paste("(kg~year^{-2}~per~unit~H)")),
-            aes(x = x, y = y, label = texts), parse = TRUE, hjust = 0, size = 5)+
+  geom_text(data = data.frame(y = 3, x = min(allInteractions$Interaction),
+                              texts = "Effect of Year × logH on residuals"),
+            aes(x = x, y = y, label = texts), hjust = 0, size = 7)+
   theme_bw()+
   theme(panel.grid.major = element_blank(),
         panel.grid.minor = element_blank(),
@@ -115,7 +111,7 @@ k <- 1
 mantelTestResults <- list()
 allfigures <- list()
 for(indispecies in studySpecies){
-  indispeciesInteractions <- allInteractions[Species==indispecies,][,Species:=NULL]
+  indispeciesInteractions <- allInteractionsOg[Species==indispecies,][,Species:=NULL]
   allInteractionswithLocation <- setkey(locations, PlotID)[setkey(indispeciesInteractions, PlotID),
                                                      nomatch = 0]
   plot_dists <- dist(cbind(allInteractionswithLocation$Longitude,
@@ -133,7 +129,8 @@ for(indispecies in studySpecies){
     geom_polygon(data = studyAreaall, aes(group = group), col = "blue", 
                  alpha = 0, linetype = 2, size = 1)+
     geom_point(data = indispeciesLocations,
-               aes(x = Easting, y = Northing, col = Interaction), size = 4)+
+               aes(x = Easting, y = Northing, col = Interaction),
+               size = 5)+
     scale_color_gradient2(low="red", mid = "gray", high = "green",
                           limits = c(min(allInteractions$Interaction),
                                      max(allInteractions$Interaction)),
