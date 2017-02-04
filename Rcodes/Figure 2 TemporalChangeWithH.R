@@ -40,9 +40,10 @@ for(indispecies in studySpecies){
                      logSActd = 0,
                      logHctd = 0)]
     fittedvalues <- predict(theallHmodel, newdata = mainTrends, level = 0, se.fit = TRUE)
-    mainTrends$PredictedABGR <- exp(fittedvalues$fit)
-    mainTrends$PredictedABGR_Upper <- exp(fittedvalues$fit+1.98*fittedvalues$se.fit)
-    mainTrends$PredictedABGR_Lower <- exp(fittedvalues$fit-1.98*fittedvalues$se.fit)
+    treeToPlotConvertor <- (length(unique(speciesData$uniTreeID))/length(unique(speciesData$PlotID)))
+    mainTrends$PredictedABGR <- treeToPlotConvertor*exp(fittedvalues$fit)
+    mainTrends$PredictedABGR_Upper <- treeToPlotConvertor*exp(fittedvalues$fit+1.98*fittedvalues$se.fit)
+    mainTrends$PredictedABGR_Lower <- treeToPlotConvertor*exp(fittedvalues$fit-1.98*fittedvalues$se.fit)
     if(nrow(speciesallHcoeff[rn == "Yearctd",]) == 1){
     output <- rbind(output, mainTrends[,.(Species, Direction, Year, 
                                           CompetitionIntensity = 0,
@@ -66,13 +67,13 @@ for(indispecies in studySpecies){
                                           Year = seq(min(speciesData$Year), 
                                                      max(speciesData$Year),
                                                      length = 100), 
-                                          H = exp(seq(log(min(speciesData$H+1)),
-                                                      log(max(speciesData$H+1)),
-                                                      length = 100))-1,
+                                          H = exp(seq(log(min(speciesData$H)),
+                                                      log(max(speciesData$H)),
+                                                      length = 100)),
                                           stringsAsFactors = FALSE))
     changewithH[,':='(Yearctd = Year-mean(speciesData$Year),
                       logDBHctd = 0,
-                      logHctd = log(H+1)-mean(log(speciesData$H+1)),
+                      logHctd = log(H)-mean(log(speciesData$H)),
                       logSActd = 0)]
     changewithH[,CompetitionIntensity:=as.numeric(as.factor(H))]
     fittedvalues <- predict(theallHmodel, newdata = changewithH, level = 0, se.fit = TRUE)
@@ -106,13 +107,10 @@ segmenttable2 <- data.table(expand.grid(Species = factor(studySpecies),
 segmenttable2[,':='(x = -Inf, xend = Inf, y = -Inf, yend = -Inf)]
 segmenttable <- rbind(segmenttable, segmenttable2)
 
-
-
 segmenttable[,':='(Species = factor(Species, 
                                     levels = studySpecies),
                    Direction = factor(Direction, 
                                       levels = c("mainTrend", "changewithH")))]
-
 texttable <- data.table(Species = "All trees", 
                         Direction = unique(output$Direction),
                         x = 1989, y = Inf)
@@ -128,9 +126,9 @@ newlabels1 <- list("All trees" = "All trees",
                    "Black spruce" = "Black spruce",
                    "Minor species group" = "Minor species group")
 newlabels2 <- list("mainTrend" = expression(atop("Plot-level aboveground biomass growth rate",
-                                                 paste("(Kg ", ha^{-1}, " ", year^{-1}, ")"))),
+                                                 paste("(Kg ", year^{-1}, " per plot)"))),
                    "changewithH" = expression(atop("Tree-level aboveground biomass growth rate",
-                                                   paste("(Kg ", year^{-1}, ")"))))
+                                                   paste("(Kg ", year^{-1}, " per tree)"))))
 
 
 figure_labeller <- function(variable,value){
@@ -140,12 +138,10 @@ figure_labeller <- function(variable,value){
     return(newlabels2[value])
   } 
 }
-output[Direction == "mainTrend", ':='(PredictedABGR = PredictedABGR*10000/500,
-                                      PredictedABGR_Lower = PredictedABGR_Lower*10000/500,
-                                      PredictedABGR_Upper = PredictedABGR_Upper*10000/500)]
+
 
 figure <- ggplot(data = output[Direction != "mainTrend"], aes(x = Year, y = PredictedABGR))+
-  facet_grid(Direction~Species, scale = "free_y",  drop = TRUE,
+  facet_grid(Direction~Species, drop = TRUE,
              switch = "y",
              labeller = figure_labeller)+
   geom_line(aes(group = CompetitionIntensity, col = CompetitionIntensity), 

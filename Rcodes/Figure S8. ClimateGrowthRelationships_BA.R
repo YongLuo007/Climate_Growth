@@ -43,8 +43,8 @@ for(indispecies in majorspecies){
                                                               CompetitionMax = max(speciesData$H),
                                                               stringsAsFactors = FALSE))) %>% data.table
   climateWithCompetitionTable[CompetitionName == "H",
-                              ':='(CompetitionMinctd = log(CompetitionMin+1)-mean(log(speciesData$H+1)),
-                                   CompetitionMaxctd = log(CompetitionMax+1)-mean(log(speciesData$H+1)))]
+                              ':='(CompetitionMinctd = log(CompetitionMin)-mean(log(speciesData$H)),
+                                   CompetitionMaxctd = log(CompetitionMax)-mean(log(speciesData$H)))]
   if(indispecies == "All species"){
     alloutput <- climateWithCompetitionTable
   } else {
@@ -64,7 +64,8 @@ for(i in c("H")){
 
 maineffectTable <- OverallResults[rn == "Climatectd",][, .(competitionModel,
                                                            Species, Climate, mainEffect = Value,
-                                                           mainEffect_SE = Std.Error)]
+                                                           mainEffect_SE = Std.Error,
+                                                           MainPvalue = `p-value`)]
 
 interactionTable <- OverallResults[rn %in% c("Climatectd:logHctd"),][
   ,.(competitionModel, rn, Species, Climate, interactEff = Value, 
@@ -85,6 +86,9 @@ alloutput1[,':='(EffectMin = mainEffect+CompetitionMinctd*interactEff,
                  EffectMax_SE = sqrt(mainEffect_SE^2+interactEff_SE^2))]
 alloutput1[, lineTransp:=1]
 alloutput1[Pvalue>0.05,lineTransp:=2]
+alloutput1[, mainPointShape:=1]
+alloutput1[MainPvalue>0.05, mainPointShape:=2]
+
 climateWithCompTable <- data.table::copy(alloutput1)
 climateWithCompTable[Climate %in% c("ATA", "ACMIA", "ACO2A"),
                      SeasonComp:="Annual anomaly"]
@@ -121,15 +125,12 @@ ZeroLines[,':='(x = -Inf, xend = Inf, y = 0, yend = 0,
                                                            "Growing season anomaly", 
                                                            "Non-growing season anomaly")),
                 ClimateName = factor(ClimateName, levels = c("Temperature", "CMI", "CO2")))]
-
 Yaxislines <- data.table(SeasonComp = factor(c("Annual anomaly"),
                                              levels = c("Annual anomaly", 
                                                         "Growing season anomaly", 
                                                         "Non-growing season anomaly")),
                          x = -Inf, xend = -Inf, y = -Inf, yend = Inf)
-
 Xaxislines <- data.table(x = Inf, xend = -Inf, y = -Inf, yend = -Inf)
-
 labeltexts <- data.table(ClimateName = factor(c("Temperature", "CMI", "CO2"),
                                               levels = c("Temperature", "CMI", 
                                                          "CO2")), 
@@ -139,15 +140,12 @@ labeltexts <- data.table(ClimateName = factor(c("Temperature", "CMI", "CO2"),
                                                         "Non-growing season anomaly")),
                          labels = letters[1:3],
                          x = -Inf, y = Inf)
-
 newlabels1 <- list("Temperature" = "Temperature anomaly effect",
                    "CMI" = "CMI anomaly effect",
                    'CO2'= expression(paste("C", O[2], " anomaly effect")))
 newlabels2 <- list("Annual anomaly" = "Annual",
                    "Growing season anomaly" = "Growing season",
                    "Non-growing season anomaly" = "Non-growing season")
-
-
 figure_labeller <- function(variable,value){
   if(variable == "ClimateName"){
     return(newlabels1[value])
@@ -155,7 +153,6 @@ figure_labeller <- function(variable,value){
     return(newlabels2[value])
   } 
 }
-
 
 
 seasontexts <- data.table(ClimateName = factor(c("Temperature"),
@@ -175,14 +172,18 @@ climateWithCompTable[EffectMin>=EffectMax,
 climateWithCompTable[EffectMin<EffectMax,
                      ':='(EffectStart = EffectMin-1.98*EffectMin_SE,
                           EffectEnd = EffectMax+1.98*EffectMax_SE)]
-
-FigureB <- ggplot(data = climateWithCompTable[lineTransp == 1,], aes(x = xaxis, y = mainEffect))+
+majorspecies <- c("All trees", "Jack pine", "Trembling aspen", "Black spruce", 
+                  "Minor species group")
+FigureB <- ggplot(data = climateWithCompTable, 
+                  aes(x = xaxis, y = mainEffect))+
   facet_grid(ClimateName~SeasonComp,
              scales = "free_y", switch = "y",
              labeller = figure_labeller, drop = FALSE)+
+  geom_point(aes(col = Species), size = 0.001)+
   geom_segment(data = ZeroLines, aes(x = x, xend = xend, 
                                      y = y, yend = yend), linetype = 2, col = "gray", size = 1)+
-  geom_segment(aes(col = Species, y = EffectStart, 
+  geom_segment(data = climateWithCompTable[lineTransp == 1,],
+               aes(col = Species, y = EffectStart, 
                    yend = EffectEnd, 
                    x = xaxis, xend = xaxis), 
                arrow = arrow(length = unit(0.05, "npc")), size = 1)+
@@ -197,7 +198,7 @@ FigureB <- ggplot(data = climateWithCompTable[lineTransp == 1,], aes(x = xaxis, 
   geom_segment(data = Xaxislines, aes(x = x, xend = xend, y = y, yend = yend), 
                size = 1, col = "black")+
   geom_text(data = labeltexts, aes(x = x, y = y, label = labels),
-            vjust = 1.5, hjust = -1.5, size = 7)+
+            vjust = 1.5, hjust = -1.5, size = 9)+
   theme(panel.grid = element_blank(),
         panel.border = element_blank(),
         panel.background = element_blank(),
@@ -205,11 +206,11 @@ FigureB <- ggplot(data = climateWithCompTable[lineTransp == 1,], aes(x = xaxis, 
         axis.line.y = element_blank(),
         axis.title = element_blank(),
         axis.text.x = element_blank(),
-        axis.text.y = element_text(size = 10),
+        axis.text.y = element_text(size = 12),
         axis.ticks.x = element_blank(),
         legend.position = c(0.85, 0.50),
         legend.title = element_blank(),
-        legend.text = element_text(size = 10),
+        legend.text = element_text(size = 12),
         legend.background = element_rect(colour = "black"),
         strip.background = element_rect(colour = "white", fill = "white"),
         strip.text.y = element_text(size = 15),
@@ -218,7 +219,7 @@ workPath <- "~/GitHub/Climate_Growth"
 
 ggsave(file.path(workPath, "TablesFigures",
                  "Figure S8. Climate associations with H_BA.png"), FigureB,
-       width = 10, height = 9)
+       width = 10, height = 10)
 
 
 

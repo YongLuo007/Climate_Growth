@@ -23,7 +23,7 @@ for(indispecies in studySpecies){
   speciesData[,':='(logY = log(BAGR), 
                     logDBHctd = log(IniDBH)-mean(log(IniDBH)), 
                     Yearctd = Year-mean(Year),
-                    logHctd = log(H+1)-mean(log(H+1)),
+                    logHctd = log(H)-mean(log(H)),
                     logIntraHctd = log(IntraH+1)-mean(log(IntraH+1)),
                     logInterHctd = log(InterH+1)-mean(log(InterH+1)),
                     logSActd = log(IniFA+2.5)-mean(log(IniFA+2.5)))]
@@ -122,7 +122,7 @@ for(indispecies in studySpecies){
     speciesData[,':='(logY = log(BAGR), 
                       logDBHctd = log(IniDBH)-mean(log(IniDBH)), 
                       Climatectd = climate-mean(climate),
-                      logHctd = log(H+1)-mean(log(H+1)),
+                      logHctd = log(H)-mean(log(H)),
                       logIntraHctd = log(IntraH+1)-mean(log(IntraH+1)),
                       logInterHctd = log(InterH+1)-mean(log(InterH+1)),
                       logSActd = log(IniFA+2.5)-mean(log(IniFA+2.5)))]
