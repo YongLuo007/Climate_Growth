@@ -37,7 +37,7 @@ for(indispecies in studySpecies){
   selectedplots <- unique(speciesData$PlotID)
   for(indiplot in selectedplots){
     indiplotdata <- speciesData[PlotID == indiplot,]
-    linearRegression <- lm(logYResiduals~Year+logSActd:Year+Year:logHctd, data = indiplotdata)
+    linearRegression <- lm(logYResiduals~Year+logSActd:Year+Year:logHctd+Year:logDBHctd, data = indiplotdata)
     plotcoeffs <- as.data.table(summary(linearRegression)$coefficients,
                                 keep.rownames = TRUE)
     plotcoeffs <- plotcoeffs[rn == "Year",.(Species = indispecies,
