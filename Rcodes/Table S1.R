@@ -15,15 +15,16 @@ studySpecies <- c("All species", "Jack pine", "Trembling aspen",
 
 for(indispecies in studySpecies){
   speciesdata <- analysesData[Species == indispecies,.(PlotID, uniTreeID, ABGR = BiomassGR,
+                                                       logABGR = log(BiomassGR),
                                                          DBH = IniDBH, logDBH = log(IniDBH),
-                                                        SA = IniFA+2.5, 
-                                                        Year, IntraH, H, 
-                                                        InterH, 
+                                                        SA = IniFA, logSA = log(IniFA),
+                                                        H, logH = log(H), 
+                                                       Year, 
                                                          ATA, GSTA, NONGSTA,
                                                          APA, GSPA, NONGSPA,
                                                          ACMIA, GSCMIA, NONGSCMIA,
                                                          ACO2A, GSCO2A, NONGSCO2A)]
-  tempcolnames <- names(speciesdata)[3:22]
+  tempcolnames <- names(speciesdata)[3:23]
   speciesdata <- reshape(data = speciesdata, varying = tempcolnames,
                          v.names = "Values",
                          timevar = "tempV",
@@ -33,8 +34,11 @@ for(indispecies in studySpecies){
                                 max = round(max(Values), 2)), by = tempV]
 
   speciesdata[,Variable:=tempcolnames]
-  speciesdata[, summary := paste(mean, " ± ", sd, "(",
+  logColNames <- tempcolnames[grep("log", tempcolnames)]
+  speciesdata[!(Variable %in% logColNames), summary := paste(mean, " ± ", sd, "(",
                                                 min, " to ", max, ")", sep = "")]
+  speciesdata[Variable %in% logColNames, summary:=paste(round(exp(mean), 2), " ± ",
+                                                        round(exp(sd), 2))]
 
   speciesdata <- speciesdata[,.(tempV, Variable, summary)]
   names(speciesdata)[3] <- indispecies
