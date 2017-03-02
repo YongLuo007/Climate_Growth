@@ -6,6 +6,7 @@
 data/
 MS/
 Results/JAGS
+RequiredRPackages/
 # Executables
 
 

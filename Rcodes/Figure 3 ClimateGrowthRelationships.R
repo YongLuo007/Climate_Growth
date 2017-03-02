@@ -4,7 +4,7 @@ library(nlme); library(dplyr);library(MuMIn)
 workPath <- "~/GitHub/Climate_Growth"
 selectionMethod <- "AllCensus_PositiveGrowth_RandomPlotADTree"
 load(file.path(workPath, "data", selectionMethod, "fullClimateModels.RData"))
-
+useLogQunatile95 <- TRUE
 competitionModel <- c("allH")
 for(i in competitionModel){
   allcoeffTable <- get(paste(i, "FixedCoeff", sep = ""))
@@ -35,13 +35,26 @@ longcol <- c(temperature, CMI, CO2)
 majorspecies <- studySpecies
 for(indispecies in majorspecies){
   speciesData <- analysesData[Species == indispecies,]
-  climateWithCompetitionTable <- rbind(data.table(expand.grid(Species = indispecies,
-                                                              competitionModel = competitionModel,
-                                                          Climate = as.character(longcol), 
-                                                          CompetitionName = "H",
-                                                          CompetitionMin = min(speciesData$H),
-                                                          CompetitionMax = max(speciesData$H),
-                                                          stringsAsFactors = FALSE))) %>% data.table
+  if(useLogQunatile95){
+    H95quantilelower <- exp(as.numeric(quantile(log(speciesData$H), probs = 0.025)))
+    H95quantileupper <- exp(as.numeric(quantile(log(speciesData$H), probs = 0.975)))
+    climateWithCompetitionTable <- rbind(data.table(expand.grid(Species = indispecies,
+                                                                competitionModel = competitionModel,
+                                                                Climate = as.character(longcol), 
+                                                                CompetitionName = "H",
+                                                                CompetitionMin = H95quantilelower,
+                                                                CompetitionMax = H95quantileupper,
+                                                                stringsAsFactors = FALSE))) %>% data.table
+  } else {
+    climateWithCompetitionTable <- rbind(data.table(expand.grid(Species = indispecies,
+                                                                competitionModel = competitionModel,
+                                                                Climate = as.character(longcol), 
+                                                                CompetitionName = "H",
+                                                                CompetitionMin = min(speciesData$H),
+                                                                CompetitionMax = max(speciesData$H),
+                                                                stringsAsFactors = FALSE))) %>% data.table
+  }
+  
   climateWithCompetitionTable[CompetitionName == "H",
                               ':='(CompetitionMinctd = log(CompetitionMin)-mean(log(speciesData$H)),
                                    CompetitionMaxctd = log(CompetitionMax)-mean(log(speciesData$H)))]
@@ -129,7 +142,7 @@ Yaxislines <- data.table(SeasonComp = factor(c("Annual anomaly"),
                                              levels = c("Annual anomaly", 
                                                         "Growing season anomaly", 
                                                         "Non-growing season anomaly")),
-                                    x = -Inf, xend = -Inf, y = -Inf, yend = Inf)
+                         x = -Inf, xend = -Inf, y = -Inf, yend = Inf)
 Xaxislines <- data.table(x = Inf, xend = -Inf, y = -Inf, yend = -Inf)
 labeltexts <- data.table(ClimateName = factor(c("Temperature", "CMI", "CO2"),
                                               levels = c("Temperature", "CMI", 
@@ -140,9 +153,12 @@ labeltexts <- data.table(ClimateName = factor(c("Temperature", "CMI", "CO2"),
                                                         "Non-growing season anomaly")),
                          labels = letters[1:3],
                          x = -Inf, y = Inf)
-newlabels1 <- list("Temperature" = "Temperature anomaly effect",
-                   "CMI" = "CMI anomaly effect",
-                   'CO2'= expression(paste("C", O[2], " anomaly effect")))
+newlabels1 <- list("Temperature" = expression(atop("Sensitivity to temperature anomaly",
+                                                   paste("(kg ", year^{-1}, " ", degree, C^{-1}, ")"))),
+                   "CMI" = expression(atop("Sensitivity to CMI anomaly",
+                                           paste("(kg ", year^{-1}, " ", mm^{-1}, ")"))),
+                   'CO2'= expression(atop(paste("Sensitivity to C", O[2], " anomaly"),
+                                          paste("(kg ", year^{-1}, " ", ppm^{-1}, ")"))))
 newlabels2 <- list("Annual anomaly" = "Annual",
                    "Growing season anomaly" = "Growing season",
                    "Non-growing season anomaly" = "Non-growing season")
@@ -153,7 +169,6 @@ figure_labeller <- function(variable,value){
     return(newlabels2[value])
   } 
 }
-
 
 seasontexts <- data.table(ClimateName = factor(c("Temperature"),
                                                levels = c("Temperature", "CMI", 
@@ -172,23 +187,24 @@ climateWithCompTable[EffectMin>=EffectMax,
 climateWithCompTable[EffectMin<EffectMax,
                      ':='(EffectStart = EffectMin-1.98*EffectMin_SE,
                           EffectEnd = EffectMax+1.98*EffectMax_SE)]
-
+climateWithCompTable[,':='(EffectStart = exp(EffectStart)-1,
+                           EffectEnd = exp(EffectEnd)-1)]
 FigureB <- ggplot(data = climateWithCompTable[lineTransp == 1,], 
                   aes(x = xaxis, y = mainEffect))+
   facet_grid(ClimateName~SeasonComp,
              scales = "free_y", switch = "y",
              labeller = figure_labeller, drop = FALSE)+
   geom_segment(data = ZeroLines, aes(x = x, xend = xend, 
-                             y = y, yend = yend), linetype = 2, col = "gray", size = 1)+
+                                     y = y, yend = yend), linetype = 2, col = "gray", size = 1)+
   geom_segment(aes(col = Species, y = EffectStart, 
                    yend = EffectEnd, 
                    x = xaxis, xend = xaxis), 
                arrow = arrow(length = unit(0.05, "npc")), size = 1)+
   geom_errorbar(data = climateWithCompTable[lineTransp == 2,],
-               aes(col = Species, ymin = pmin(EffectStart), 
-                   ymax = pmax(EffectEnd), 
-                   x = xaxis), 
-               size = 1, width = 0.2)+
+                aes(col = Species, ymin = pmin(EffectStart), 
+                    ymax = pmax(EffectEnd), 
+                    x = xaxis), 
+                size = 1, width = 0.2)+
   scale_x_continuous(name = "a", limits = c(0, 6))+
   geom_segment(data = Yaxislines, aes(x = x, xend = xend, y = y, yend = yend), 
                size = 1.5, col = "black")+
@@ -207,17 +223,22 @@ FigureB <- ggplot(data = climateWithCompTable[lineTransp == 1,],
         axis.ticks.x = element_blank(),
         legend.position = c(0.85, 0.50),
         legend.title = element_blank(),
-        legend.text = element_text(size = 12),
+        legend.text = element_text(size = 13),
         legend.background = element_rect(colour = "black"),
         strip.background = element_rect(colour = "white", fill = "white"),
-        strip.text.y = element_text(size = 15),
+        strip.text.y = element_text(size = 14),
         strip.text.x = element_text(size = 15, face = "italic"))
 workPath <- "~/GitHub/Climate_Growth"
 
-ggsave(file.path(workPath, "TablesFigures",
-                 "Figure 3. Climate associations with H.png"), FigureB,
-       width = 10, height = 10)
-
+if(useLogQunatile95){
+  ggsave(file.path(workPath, "TablesFigures",
+                   "Figure 3. Climate associations with H_95logQuntile.png"), FigureB,
+         width = 10, height = 10)
+} else {
+  ggsave(file.path(workPath, "TablesFigures",
+                   "Figure 3. Climate associations with H.png"), FigureB,
+         width = 10, height = 10)
+}
 
 
 

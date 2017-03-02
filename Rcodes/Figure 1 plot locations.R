@@ -20,8 +20,8 @@ ecozoneses <- c("Boreal Cordillera", "Boreal PLain",  "Boreal Shield",
 boreal <- ecozones[ecozones@data$ZONE_NAME %in% ecozoneses,]
 boreal <- spTransform(boreal, CRSobj = crs(canadamap))
 boreal <- gIntersection(boreal, canadamap)
-MBProvince <- canadamap[canadamap@data$NAME  == "Manitoba", ]
-studyArea <- gIntersection(boreal, MBProvince)
+
+
 
 df<- data.frame(id = "boreal")
 row.names(df) <- 1
@@ -37,7 +37,11 @@ locations <- locations[,.(PlotID, Easting, Northing)] %>%
   unique(., by = "PlotID")
 MBlocation <- SpatialPoints(locations[,.(Easting, Northing)], proj4string = CRS("+proj=utm +zone=14 datum=NAD83"))
 MBlocation <- spTransform(MBlocation, crs(canadamap))
+studyAreaSquare <- crop(canadamap, MBlocation)
+
 MBlocation <- as.data.frame(MBlocation@coords)
+
+studyArea <- gIntersection(boreal, studyAreaSquare)
 
 lines <- list()
 i <- 1
@@ -180,9 +184,10 @@ AnnualCMIRaster_p$CMIClass <- cut(AnnualCMIRaster_p$CMI, breaks = cutpoints2,
 
 Figure1b <- ggplot(data = AnnualTRaster_p, aes(x = long, y = lat))+
   geom_raster(aes(fill = Temperature))+
-  scale_fill_gradient2(name = expression(atop("Annual \ntemperature \ntrend", 
-                                         paste("(", degree, "C yea",r^{-1}, ")"))), low = "yellow", high = "red")+
-  guides(fill = guide_colourbar(title.position = "top"))+
+  scale_fill_gradient2(name = expression(atop("Annual temperature trend ", 
+                                         paste("(", degree, "C yea",r^{-1}, ")"))),
+                       low = "#2166ac", high = "#b2182b")+
+  guides(fill = guide_colourbar(title.position = "top", barwidth = unit(2, "in")))+
   geom_point(data = MBlocation,
              aes(x = MBlocation$Easting, y = MBlocation$Northing), col = "black",
              pch = 3, size = 2)+
@@ -194,17 +199,18 @@ Figure1b <- ggplot(data = AnnualTRaster_p, aes(x = long, y = lat))+
         axis.title = element_blank(),
         axis.text = element_blank(),
         axis.ticks = element_blank(),
-        legend.title = element_text(size = 15),
+        legend.title = element_text(size = 12),
         legend.text = element_text(angle = 45, size = 12),
         legend.direction = "horizontal",
-        legend.position = c(0.78, 0.19))
+        legend.background = element_rect(colour = "black"),
+        legend.position = c(0.30, 0.13))
 
 Figure1c <- ggplot(data = AnnualCMIRaster_p, aes(x = long, y = lat))+
   geom_raster(aes(fill = CMI))+
-  scale_fill_gradient2(name = expression(atop("Annual climate \nmoisture index \ntrend", 
+  scale_fill_gradient2(name = expression(atop("Annual climate moisture index trend  ", 
                                               paste("(mm yea",r^{-1}, ")"))),
-                       low = "red", high = "green")+
-  guides(fill = guide_colourbar(title.position = "top"))+
+                       low = "#b2182b", high = "#2166ac")+
+  guides(fill = guide_colourbar(title.position = "top", barwidth = unit(2, "in")))+
   geom_point(data = MBlocation,
              aes(x = MBlocation$Easting, y = MBlocation$Northing), col = "black",
              pch = 3, size = 2)+
@@ -217,9 +223,10 @@ Figure1c <- ggplot(data = AnnualCMIRaster_p, aes(x = long, y = lat))+
         axis.text = element_blank(),
         axis.ticks = element_blank(),
         legend.direction = "horizontal",
-        legend.title = element_text(size = 15),
-        legend.text = element_text(angle = 45, size = 12),
-        legend.position = c(0.78, 0.19))
+        legend.title = element_text(size = 12),
+        legend.text = element_text(size = 12),
+        legend.background = element_rect(colour = "black"),
+        legend.position = c(0.30, 0.13))
 
 library(gridExtra)
 plotlayout <- rbind(c(1, 1), c(1, 1), c(2, 3), c(2, 3), c(2, 3))
