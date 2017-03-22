@@ -1,18 +1,19 @@
 ################################################################################
-#' this function is to calculate aboveground biomass for boreal species based on DBH
+#' this function is to calculate aboveground biomass for canadian tree species based on DBH
 #' or DBH and Height
 #' 
 #' @param species  Character string. The species name.
 #'
 #' @param DBH  Numeric. The tree's diameter at breast height (DBH, cm).
 #' 
-#' @param heightIncluded  Logical. Whether the biomass is calculated based on DBH and height.
+#' @param includeHeight  Logical. Whether the biomass is calculated based on DBH and height.
 #'        If TURE, height must be provided.
 #'        Default \code{FALSE}
 #' 
 #' @param height  Numeric. The tree's height (m).
 #' 
-#' @param paperSource  Character. Determine the sources of equations. Currently, this functions has two
+#' @param equationSource  Character. Determine the sources of equations. 
+#'        Currently, this function has two
 #'        options, i.e., "Lambert2005" and "Ung2008".
 #'        Default \code{Lambert2005}
 #'
@@ -40,12 +41,12 @@
 #'  biomass1 <- biomassCalculation(species = species, DBH = DBH) # without height information and
 #'                                                              # and taking the eqations from Lambert 2005
 #'                                                              
-#'  biomass2 <- biomassCalculation(species = species, DBH = DBH, heightIncluded = TRUE, height = height)
+#'  biomass2 <- biomassCalculation(species = species, DBH = DBH, includeHeight = TRUE, height = height)
 #'                                                              # with height information and
 #'                                                              # and taking the eqations from Lambert 2005
 #' }
-setGeneric("biomassCalculation", function(species, DBH, heightIncluded, 
-                                          height, paperSource) {
+setGeneric("biomassCalculation", function(species, DBH, includeHeight, 
+                                          height, equationSource) {
   standardGeneric("biomassCalculation")
 })
 
@@ -53,16 +54,15 @@ setGeneric("biomassCalculation", function(species, DBH, heightIncluded,
 #' @rdname moduleCoverage
 setMethod(
   "biomassCalculation",
-  signature = c(species = "character", DBH = "numeric", heightIncluded = "logical",
-                height = "numeric", paperSource = "character"),
-  definition = function(species, DBH, heightIncluded, 
-                        height, paperSource) {
-    if(paperSource != "Lambert2005" & paperSource != "Ung2008"){
-      stop("Please select the correct paperSource Lambert2005 or Ung2008")
+  signature = c(species = "character", DBH = "numeric", includeHeight = "logical",
+                height = "numeric", equationSource = "character"),
+  definition = function(species, DBH, includeHeight, 
+                        height, equationSource) {
+    if(equationSource != "Lambert2005" & equationSource != "Ung2008"){
+      stop("Please select the correct equationSource Lambert2005 or Ung2008")
     }
-    
     # the below parameters are from Table 3 in Lambert 2005
-    if(!heightIncluded){
+    if(!includeHeight){
       tempdatatable <- data.table::data.table(species = species, DBH = DBH)
       uniqueSpecies <- unique(species)
       for (individualSpecies in uniqueSpecies){
@@ -152,7 +152,7 @@ setMethod(
                           foliage1*DBH^foliage2+
                           branches1*DBH^branches2]
         } else if (individualSpecies == "black spruce"){
-          if(paperSource == "Lambert2005"){
+          if(equationSource == "Lambert2005"){
             wood1 <- 0.0477
             wood2 <- 2.5147
             bark1 <- 0.0153
@@ -331,7 +331,7 @@ setMethod(
                           foliage1*DBH^foliage2+
                           branches1*DBH^branches2]
         } else if (individualSpecies == "lodgepole pine"){
-          if(paperSource == "Lambert2005"){
+          if(equationSource == "Lambert2005"){
             wood1 <- 0.0475
             wood2 <- 2.5437
             bark1 <- 0.0186
@@ -524,7 +524,7 @@ setMethod(
                           foliage1*DBH^foliage2+
                           branches1*DBH^branches2]
         } else if (individualSpecies == "trembling aspen"){
-          if(paperSource == "Lambert2005"){
+          if(equationSource == "Lambert2005"){
             wood1 <- 0.0605
             wood2 <- 2.4750
             bark1 <- 0.0168
@@ -591,7 +591,7 @@ setMethod(
                           foliage1*DBH^foliage2+
                           branches1*DBH^branches2]
         } else if (individualSpecies == "white birch"){
-          if(paperSource == "Lambert2005"){
+          if(equationSource == "Lambert2005"){
             wood1 <- 0.0593
             wood2 <- 2.5026
             bark1 <- 0.0135
@@ -644,7 +644,7 @@ setMethod(
                           foliage1*DBH^foliage2+
                           branches1*DBH^branches2]
         } else if (individualSpecies == "white spruce"){
-          if(paperSource == "Lambert2005"){
+          if(equationSource == "Lambert2005"){
             wood1 <- 0.0359
             wood2 <- 2.5775
             bark1 <- 0.0116
@@ -683,7 +683,7 @@ setMethod(
                           foliage1*DBH^foliage2+
                           branches1*DBH^branches2]
         } else if (individualSpecies == "hardwood"){
-          if(paperSource == "Lambert2005"){
+          if(equationSource == "Lambert2005"){
             wood1 <- 0.0871
             wood2 <- 2.3702
             bark1 <- 0.0241
@@ -709,7 +709,7 @@ setMethod(
                           foliage1*DBH^foliage2+
                           branches1*DBH^branches2]
         } else if (individualSpecies == "softwood"){
-          if(paperSource == "Lambert2005"){
+          if(equationSource == "Lambert2005"){
             wood1 <- 0.0648
             wood2 <- 2.3927
             bark1 <- 0.0162
@@ -894,7 +894,7 @@ setMethod(
                           foliage1*(DBH^foliage2)*(height^foliage3)+
                           branches1*(DBH^branches2)*(height^branches3)]
         } else if(individualSpecies == "black spruce"){
-          if(paperSource == "Lambert2005"){
+          if(equationSource == "Lambert2005"){
             wood1 <- 0.0309
             wood2 <- 1.7527
             wood3 <- 1.0014
@@ -1125,7 +1125,7 @@ setMethod(
                           foliage1*(DBH^foliage2)*(height^foliage3)+
                           branches1*(DBH^branches2)*(height^branches3)]
         } else if(individualSpecies == "lodgepole pine"){
-          if(paperSource == "Lambert2005"){
+          if(equationSource == "Lambert2005"){
             wood1 <- 0.0202
             wood2 <- 1.7179
             wood3 <- 1.2078
@@ -1374,7 +1374,7 @@ setMethod(
                           foliage1*(DBH^foliage2)*(height^foliage3)+
                           branches1*(DBH^branches2)*(height^branches3)]
         } else if(individualSpecies == "trembling aspen"){
-          if(paperSource == "Lambert2005"){
+          if(equationSource == "Lambert2005"){
             wood1 <- 0.0142
             wood2 <- 1.9389
             wood3 <- 1.0572
@@ -1461,7 +1461,7 @@ setMethod(
                           foliage1*(DBH^foliage2)*(height^foliage3)+
                           branches1*(DBH^branches2)*(height^branches3)]
         } else if(individualSpecies == "white birch"){
-          if(paperSource == "Lambert2005"){
+          if(equationSource == "Lambert2005"){
             wood1 <- 0.0338
             wood2 <- 2.0702
             wood3 <- 0.6876
@@ -1530,7 +1530,7 @@ setMethod(
                           foliage1*(DBH^foliage2)*(height^foliage3)+
                           branches1*(DBH^branches2)*(height^branches3)]
         } else if(individualSpecies == "white spruce"){
-          if(paperSource == "Lambert2005"){
+          if(equationSource == "Lambert2005"){
             wood1 <- 0.0265
             wood2 <- 1.7952
             wood3 <- 0.9733
@@ -1581,7 +1581,7 @@ setMethod(
                           foliage1*(DBH^foliage2)*(height^foliage3)+
                           branches1*(DBH^branches2)*(height^branches3)]
         } else if(individualSpecies == "hardwood"){
-          if(paperSource == "Lambert2005"){
+          if(equationSource == "Lambert2005"){
             wood1 <- 0.0359
             wood2 <- 2.0263
             wood3 <- 0.6987
@@ -1614,7 +1614,7 @@ setMethod(
                           foliage1*(DBH^foliage2)*(height^foliage3)+
                           branches1*(DBH^branches2)*(height^branches3)]
         } else if(individualSpecies == "softwood"){
-          if(paperSource == "Lambert2005"){
+          if(equationSource == "Lambert2005"){
             wood1 <- 0.0284
             wood2 <- 1.6894
             wood3 <- 1.0857
@@ -1689,53 +1689,53 @@ setMethod(
 #' @rdname biomassCalculation
 setMethod(
   "biomassCalculation",
-  signature = c(species = "character", DBH = "numeric", heightIncluded = "missing",
-                height = "numeric", paperSource = "character"),
-  definition = function(species, DBH, height, paperSource) {
-    biomassCalculation(species = species, DBH = DBH, heightIncluded = FALSE,
-                       height = height, paperSource = paperSource)
+  signature = c(species = "character", DBH = "numeric", includeHeight = "missing",
+                height = "numeric", equationSource = "character"),
+  definition = function(species, DBH, height, equationSource) {
+    biomassCalculation(species = species, DBH = DBH, includeHeight = FALSE,
+                       height = height, equationSource = equationSource)
   })
 
 #' @export
 #' @rdname biomassCalculation
 setMethod(
   "biomassCalculation",
-  signature = c(species = "character", DBH = "numeric", heightIncluded = "logical",
-                height = "numeric", paperSource = "missing"),
-  definition = function(species, DBH, heightIncluded, height) {
-    biomassCalculation(species = species, DBH = DBH, heightIncluded = heightIncluded,
-                       height = height, paperSource = "Lambert2005")
+  signature = c(species = "character", DBH = "numeric", includeHeight = "logical",
+                height = "numeric", equationSource = "missing"),
+  definition = function(species, DBH, includeHeight, height) {
+    biomassCalculation(species = species, DBH = DBH, includeHeight = includeHeight,
+                       height = height, equationSource = "Lambert2005")
   })
 
 #' @export
 #' @rdname biomassCalculation
 setMethod(
   "biomassCalculation",
-  signature = c(species = "character", DBH = "numeric", heightIncluded = "missing",
-                height = "numeric", paperSource = "missing"),
+  signature = c(species = "character", DBH = "numeric", includeHeight = "missing",
+                height = "numeric", equationSource = "missing"),
   definition = function(species, DBH, height) {
-    biomassCalculation(species = species, DBH = DBH, heightIncluded = FALSE,
-                       height = height, paperSource = "Lambert2005")
+    biomassCalculation(species = species, DBH = DBH, includeHeight = FALSE,
+                       height = height, equationSource = "Lambert2005")
   })
 
 #' @export
 #' @rdname biomassCalculation
 setMethod(
   "biomassCalculation",
-  signature = c(species = "character", DBH = "numeric", heightIncluded = "missing",
-                height = "missing", paperSource = "character"),
-  definition = function(species, DBH, paperSource) {
-    biomassCalculation(species = species, DBH = DBH, heightIncluded = FALSE,
-                       height = 1, paperSource = paperSource)
+  signature = c(species = "character", DBH = "numeric", includeHeight = "missing",
+                height = "missing", equationSource = "character"),
+  definition = function(species, DBH, equationSource) {
+    biomassCalculation(species = species, DBH = DBH, includeHeight = FALSE,
+                       height = 1, equationSource = equationSource)
   })
 
 #' @export
 #' @rdname biomassCalculation
 setMethod(
   "biomassCalculation",
-  signature = c(species = "character", DBH = "numeric", heightIncluded = "missing",
-                height = "missing", paperSource = "missing"),
+  signature = c(species = "character", DBH = "numeric", includeHeight = "missing",
+                height = "missing", equationSource = "missing"),
   definition = function(species, DBH) {
-    biomassCalculation(species = species, DBH = DBH, heightIncluded = FALSE,
-                       height = 1, paperSource = "Lambert2005")
+    biomassCalculation(species = species, DBH = DBH, includeHeight = FALSE,
+                       height = 1, equationSource = "Lambert2005")
   })
