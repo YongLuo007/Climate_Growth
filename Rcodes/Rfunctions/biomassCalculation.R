@@ -51,7 +51,7 @@ setGeneric("biomassCalculation", function(species, DBH, includeHeight,
 })
 
 #' @export
-#' @rdname moduleCoverage
+#' @rdname biomassCalculation
 setMethod(
   "biomassCalculation",
   signature = c(species = "character", DBH = "numeric", includeHeight = "logical",
