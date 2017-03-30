@@ -1,4 +1,5 @@
-#' the function to select the best model based on AIC, DIC or BIC
+#' the function to select the best mixed effect model based on AIC, DIC or BIC using a backward and forward 
+#' model selection protocol
 #'
 #'
 #' @param DV character, specify the dependent variable
@@ -22,7 +23,9 @@
 #' 
 #' 
 #'
-#' @return a data table that has three columns, i.e., active, mapcode and ecoregion
+#' @return a table that contains detailed selection process, i.e., which predictor is dropped or added, what is the change of IC
+#' 
+#'         a vector of the best perdictors
 #' 
 #' @importFrom data.table data.table ':='
 #' @importFrom dplyr left_join '%>%' 
