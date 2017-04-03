@@ -1,8 +1,9 @@
 rm(list = ls())
-library(data.table); library(ggplot2); library(SpaDES)
+library(data.table); library(ggplot2, lib.loc = "~/GitHub/Climate_Growth/RequiredRPackages");
+# library(SpaDES, lib.loc = "~/GitHub/Climate_Growth/RequiredRPackages")
 library(nlme); library(dplyr);library(MuMIn)
 workPath <- "~/GitHub/Climate_Growth"
-selectionMethod <- "AllCensus_PositiveGrowth_RandomPlotADTree"
+selectionMethod <- "Year10Analyses"
 load(file.path(workPath, "data", selectionMethod, "fullClimateModels.RData"))
 useLogQunatile95 <- TRUE
 competitionModel <- c("allH")
@@ -36,8 +37,8 @@ majorspecies <- studySpecies
 for(indispecies in majorspecies){
   speciesData <- analysesData[Species == indispecies,]
   if(useLogQunatile95){
-    H95quantilelower <- exp(as.numeric(quantile(log(speciesData$H), probs = 0.025)))
-    H95quantileupper <- exp(as.numeric(quantile(log(speciesData$H), probs = 0.975)))
+    H95quantilelower <- exp(as.numeric(quantile(log(speciesData$MidH), probs = 0.025)))
+    H95quantileupper <- exp(as.numeric(quantile(log(speciesData$MidH), probs = 0.975)))
     climateWithCompetitionTable <- rbind(data.table(expand.grid(Species = indispecies,
                                                                 competitionModel = competitionModel,
                                                                 Climate = as.character(longcol), 
@@ -50,14 +51,14 @@ for(indispecies in majorspecies){
                                                                 competitionModel = competitionModel,
                                                                 Climate = as.character(longcol), 
                                                                 CompetitionName = "H",
-                                                                CompetitionMin = min(speciesData$H),
-                                                                CompetitionMax = max(speciesData$H),
+                                                                CompetitionMin = min(speciesData$MidH),
+                                                                CompetitionMax = max(speciesData$MidH),
                                                                 stringsAsFactors = FALSE))) %>% data.table
   }
   
   climateWithCompetitionTable[CompetitionName == "H",
-                              ':='(CompetitionMinctd = log(CompetitionMin)-mean(log(speciesData$H)),
-                                   CompetitionMaxctd = log(CompetitionMax)-mean(log(speciesData$H)))]
+                              ':='(CompetitionMinctd = log(CompetitionMin)-mean(log(speciesData$MidH)),
+                                   CompetitionMaxctd = log(CompetitionMax)-mean(log(speciesData$MidH)))]
   if(indispecies == "All species"){
     alloutput <- climateWithCompetitionTable
   } else {
@@ -205,7 +206,7 @@ FigureB <- ggplot(data = climateWithCompTable[lineTransp == 1,],
                     ymax = pmax(EffectEnd), 
                     x = xaxis), 
                 size = 1, width = 0.2)+
-  scale_x_continuous(name = "a", limits = c(0, 6))+
+  scale_x_continuous(name = "a", limits = c(0.5, 5.5))+
   geom_segment(data = Yaxislines, aes(x = x, xend = xend, y = y, yend = yend), 
                size = 1.5, col = "black")+
   geom_segment(data = Xaxislines, aes(x = x, xend = xend, y = y, yend = yend), 
@@ -219,21 +220,21 @@ FigureB <- ggplot(data = climateWithCompTable[lineTransp == 1,],
         axis.line.y = element_blank(),
         axis.title = element_blank(),
         axis.text.x = element_blank(),
-        axis.text.y = element_text(size = 12),
+        axis.text.y = element_text(size = 13),
         axis.ticks.x = element_blank(),
         legend.position = c(0.85, 0.50),
         legend.title = element_blank(),
         legend.text = element_text(size = 13),
         legend.background = element_rect(colour = "black"),
         strip.background = element_rect(colour = "white", fill = "white"),
-        strip.text.y = element_text(size = 14),
+        strip.text.y = element_text(size = 15),
         strip.text.x = element_text(size = 15, face = "italic"))
 workPath <- "~/GitHub/Climate_Growth"
 
 if(useLogQunatile95){
   ggsave(file.path(workPath, "TablesFigures",
                    "Figure 3. Climate associations with H_95logQuntile.png"), FigureB,
-         width = 10, height = 10)
+         width = 13, height = 11)
 } else {
   ggsave(file.path(workPath, "TablesFigures",
                    "Figure 3. Climate associations with H.png"), FigureB,
