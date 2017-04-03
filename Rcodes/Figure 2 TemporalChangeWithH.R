@@ -3,13 +3,13 @@ rm(list = ls())
 library(data.table); library(ggplot2); library(SpaDES)
 library(nlme); library(dplyr);library(MuMIn);library(gridExtra)
 workPath <- "~/GitHub/Climate_Growth"
-selectionMethod <- "AllCensus_PositiveGrowth_RandomPlotADTree"
+selectionMethod <- "Year10Analyses"
 load(file.path(workPath, "data",selectionMethod,
-               "BestYearModels.RData"))
+               "FullYearModels.RData"))
 ##### for overall temporal trends and its dependency on DBH and RBI
-for(i in 1:length(allHFixedCoeff)){
-  indicoeff <- allHFixedCoeff[[i]]
-  indicoeff[,Species:=names(allHFixedCoeff[i])]
+for(i in 1:length(fixedCoeffAll)){
+  indicoeff <- fixedCoeffAll[[i]]
+  indicoeff[,Species:=names(fixedCoeffAll[i])]
   if(i == 1){
     allHcoeff <- indicoeff
   } else {
@@ -27,25 +27,25 @@ output <- data.table(Species = character(), Direction = character(),
                      PredictedABGR_Lower = numeric(), PredictedABGR_Upper = numeric(),
                      overallSignificant = numeric())
 for(indispecies in studySpecies){
-  speciesData <- analysesData[Species == indispecies,]
+  speciesData <- analysesDataAll[Species == indispecies,]
+  minABGR <- round(abs(min(speciesData$BiomassGR)), 3)+0.01
   speciesallHcoeff <- allHcoeff[Species == indispecies, ]
-  allHbestFormula <- allHbestFormulas[[indispecies]]
-  theallHmodel <- allHbestModels[[indispecies]]
+  theallHmodel <- allfullModelsAll[[indispecies]]
   mainTrends <- data.table(Species = indispecies, 
                            Direction = "mainTrend",
-                           Year = seq(min(speciesData$Year), 
-                                      max(speciesData$Year),
+                           Year = seq(min(speciesData$IniYear), 
+                                      max(speciesData$FinYear),
                                       length = 100))
-  mainTrends[,':='(Yearctd = Year - mean(speciesData$Year),
+  mainTrends[,':='(Yearctd = Year - mean(speciesData$MidYear),
                    logDBHctd = 0,
                    logSActd = 0,
                    logHctd = 0)]
   fittedvalues <- predict(theallHmodel, newdata = mainTrends, level = 0, se.fit = TRUE)
-  treeToPlotConvertor <- (length(unique(speciesData$uniTreeID))/length(unique(speciesData$PlotID)))
-  mainTrends$PredictedABGR <- treeToPlotConvertor*exp(fittedvalues$fit)
-  mainTrends$PredictedABGR_Upper <- treeToPlotConvertor*exp(fittedvalues$fit+1.98*fittedvalues$se.fit)
-  mainTrends$PredictedABGR_Lower <- treeToPlotConvertor*exp(fittedvalues$fit-1.98*fittedvalues$se.fit)
-  if(nrow(speciesallHcoeff[rn == "Yearctd",]) == 1){
+  treeToPlotConvertor <- (length(unique(speciesData$uniTreeID))/length(unique(analysesDataAll$PlotID)))
+  mainTrends$PredictedABGR <- treeToPlotConvertor*(exp(fittedvalues$fit)-minABGR)
+  mainTrends$PredictedABGR_Upper <- treeToPlotConvertor*(exp(fittedvalues$fit+1.98*fittedvalues$se.fit)-minABGR)
+  mainTrends$PredictedABGR_Lower <- treeToPlotConvertor*(exp(fittedvalues$fit-1.98*fittedvalues$se.fit)-minABGR)
+  if(speciesallHcoeff[rn == "Yearctd",]$`p-value` < 0.05){
     output <- rbind(output, mainTrends[,.(Species, Direction, Year, 
                                           CompetitionIntensity = 0,
                                           PredictedABGR, PredictedABGR_Lower,
@@ -65,12 +65,12 @@ for(indispecies in studySpecies){
 
   if(nrow(speciesallHcoeff[Direction == "changewithH",]) == 1){
     if(useLogQunatile95){
-      H95quantilelower <- exp(as.numeric(quantile(log(speciesData$H), probs = 0.025)))
-      H95quantileupper <- exp(as.numeric(quantile(log(speciesData$H), probs = 0.975)))
+      H95quantilelower <- exp(as.numeric(quantile(log(speciesData$MidH), probs = 0.025)))
+      H95quantileupper <- exp(as.numeric(quantile(log(speciesData$MidH), probs = 0.975)))
       changewithH <- data.table(expand.grid(Species = indispecies,
                                             Direction = "changewithH",
-                                            Year = seq(min(speciesData$Year), 
-                                                       max(speciesData$Year),
+                                            Year = seq(min(speciesData$IniYear), 
+                                                       max(speciesData$FinYear),
                                                        length = 100), 
                                             H = exp(seq(log(H95quantilelower),
                                                         log(H95quantileupper),
@@ -79,24 +79,24 @@ for(indispecies in studySpecies){
     } else {
       changewithH <- data.table(expand.grid(Species = indispecies,
                                             Direction = "changewithH",
-                                            Year = seq(min(speciesData$Year), 
-                                                       max(speciesData$Year),
+                                            Year = seq(min(speciesData$IniYear), 
+                                                       max(speciesData$FinYear),
                                                        length = 100), 
-                                            H = exp(seq(log(min(speciesData$H)),
-                                                        log(max(speciesData$H)),
+                                            H = exp(seq(log(min(speciesData$MidH)),
+                                                        log(max(speciesData$MidH)),
                                                         length = 100)),
                                             stringsAsFactors = FALSE))
     }
     
-    changewithH[,':='(Yearctd = Year-mean(speciesData$Year),
+    changewithH[,':='(Yearctd = Year-mean(speciesData$MidYear),
                       logDBHctd = 0,
-                      logHctd = log(H)-mean(log(speciesData$H)),
+                      logHctd = log(H)-mean(log(speciesData$MidH)),
                       logSActd = 0)]
     changewithH[,CompetitionIntensity:=as.numeric(as.factor(H))]
     fittedvalues <- predict(theallHmodel, newdata = changewithH, level = 0, se.fit = TRUE)
-    changewithH$PredictedABGR <- exp(fittedvalues$fit)
-    changewithH$PredictedABGR_Upper <- exp(fittedvalues$fit+1.98*fittedvalues$se.fit)
-    changewithH$PredictedABGR_Lower <- exp(fittedvalues$fit-1.98*fittedvalues$se.fit)
+    changewithH$PredictedABGR <- exp(fittedvalues$fit)-minABGR
+    changewithH$PredictedABGR_Upper <- exp(fittedvalues$fit+1.98*fittedvalues$se.fit)-minABGR
+    changewithH$PredictedABGR_Lower <- exp(fittedvalues$fit-1.98*fittedvalues$se.fit)-minABGR
     
     output <- rbind(output, changewithH[,.(Species, Direction, Year, 
                                            CompetitionIntensity,
@@ -158,11 +158,12 @@ figureA <- ggplot(data = output[Direction == "mainTrend"], aes(x = Year, y = Pre
   geom_line(aes(x = Year, y = PredictedABGR,
                 linetype = as.factor(overallSignificant)),
             col = "black", size = 1, show.legend = FALSE)+
-  scale_y_continuous(name = expression(atop("Plot-level aboveground biomass growth rate",
-                                            paste("(Kg ", year^{-1}, " per plot)"))),
-                     limits = c(0, 65))+
-  scale_x_continuous(name = "Year", breaks = seq(1990, 2010, by = 5))+
-  geom_text(data = data.frame(Year = -Inf, PredictedABGR = Inf, Species = "All trees", texts = "a"),
+   scale_y_continuous(name = expression(atop("Plot-level aboveground biomass growth rate",
+                                             paste("(Kg ", year^{-1}, " per plot)"))),
+                      limits = c(0, 82))+
+  scale_x_continuous(name = "Year", breaks = seq(1985, 2010, by = 5))+
+  geom_text(data = data.frame(Year = -Inf, PredictedABGR = Inf,
+                              Species = "All trees", texts = "b"),
             aes(x = Year, y = PredictedABGR, label = texts), hjust = -1.5, vjust = 1, size = 10)+
   theme_bw()+
   theme(panel.grid.major = element_blank(),
@@ -170,14 +171,11 @@ figureA <- ggplot(data = output[Direction == "mainTrend"], aes(x = Year, y = Pre
         panel.border = element_blank(),
         axis.line.x = element_line(colour = "black", size = 1),
         axis.line.y = element_line(colour = "black", size = 1),
-        axis.text.y = element_text(size = 12),
-        axis.text.x = element_blank(),
-        axis.title.y = element_text(size = 13),
-        axis.title.x = element_blank(),
-        # axis.ticks.x = element_blank(),
+        axis.text.y = element_text(size = 13),
+        axis.text.x = element_text(size = 13, angle = 45, vjust = 0.5),
+        axis.title = element_text(size = 15),
         strip.background = element_rect(colour = "white", fill = "white"),
-        strip.text.x = element_text(size = 15, face = "italic"),
-        strip.text.y = element_blank())
+        strip.text = element_blank())
 
 
 
@@ -204,7 +202,7 @@ figureB_labeller <- function(variable,value){
   }
 }
 
-figureB <- ggplot(data = output_B, aes(x = Year, y = PredictedABGR))+
+figureB <- ggplot(data = output_B[Panel == "Upper"], aes(x = Year, y = PredictedABGR))+
   facet_grid(Panel~Species, drop = TRUE,
              scale = "free_y",
              labeller = figureB_labeller)+
@@ -212,13 +210,14 @@ figureB <- ggplot(data = output_B, aes(x = Year, y = PredictedABGR))+
             size = 1)+
   scale_y_continuous(name = expression(atop("Tree-level aboveground biomass growth rate",
                                             paste("(Kg ", year^{-1}, " per tree)"))))+
-  scale_x_continuous(name = "Year", breaks = seq(1990, 2010, by = 5))+
+  scale_x_continuous(name = "Year", breaks = seq(1985, 2010, by = 5))+
   scale_color_continuous(name = "Competition \nintensity",
                          low = "#4d9221", high = "#c51b7d", 
                          breaks = c(3, 100),
                          labels = c("\nWeak", "Strong\n"),
                          guide = guide_colorbar(reverse = TRUE, ticks = FALSE))+
-  geom_text(data = data.frame(x = -Inf, y = Inf, Species = "All trees", Panel = "Upper", texts = "b"),
+  geom_text(data = data.frame(x = -Inf, y = Inf, Species = "All trees",
+                              Panel = "Upper", texts = "a"),
             aes(x = x, y = y, label = texts), vjust = 1, hjust = -1.5, size = 10)+
   theme_bw()+
   theme(panel.grid.major = element_blank(),
@@ -226,12 +225,16 @@ figureB <- ggplot(data = output_B, aes(x = Year, y = PredictedABGR))+
         panel.border = element_blank(),
         axis.line.x = element_line(colour = "black", size = 1),
         axis.line.y = element_line(colour = "black", size = 1),
-        axis.text = element_text(size = 12),
-        axis.title = element_text(size = 13),
-        strip.text = element_blank(),
+        axis.text.y = element_text(size = 13),
+        axis.title.y = element_text(size = 15),
+        axis.text.x = element_blank(),
+        axis.title.x = element_blank(),
+        strip.text.y = element_blank(),
+        strip.text.x = element_text(size = 15, face = "italic"),
+        strip.background = element_blank(),
         # legend.direction = "horizontal",
         legend.background = element_rect(colour = "black"),
-        legend.position = c(0.70, 0.83),
+        legend.position = c(0.70, 0.75),
         legend.text = element_text(size = 13),
         legend.title = element_text(size = 15))
 
@@ -242,14 +245,14 @@ a_Grob$widths <- b_Grob$widths
 
 dev(4)
 clearPlot()
-plotlayout <- rbind(c(1), c(1), c(2), c(2),c(2))
-figure <- grid.arrange(a_Grob, b_Grob, 
+plotlayout <- rbind(c(1), c(1), c(2), c(2))
+figure <- grid.arrange(b_Grob, a_Grob, 
                        layout_matrix = plotlayout)
 workPath <- "~/GitHub/Climate_Growth"
 if(useLogQunatile95){
   ggsave(file = file.path(workPath, "TablesFigures", 
                           paste("Figure 2. temporal trends with H_95Quantile", selectionMethod, ".png")),
-         figure,  width = 11, height = 10)
+         figure,  width = 12, height = 10)
 } else {
   ggsave(file = file.path(workPath, "TablesFigures", 
                           paste("Figure 2. temporal trends with H", selectionMethod, ".png")),
