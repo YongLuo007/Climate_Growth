@@ -33,6 +33,10 @@ locations <- read.csv(file.path(workPath, "data", "selectedPlotMasterTable.csv")
                       stringsAsFactors = FALSE) %>%
   data.table
 
+Year10Plots <- fread(file.path(workPath, "data", "Year10Analyses", "finalData10.csv"))
+locations <- locations[PlotID %in% unique(Year10Plots$PlotID),]
+
+
 locations <- locations[,.(PlotID, Easting, Northing)] %>%
   unique(., by = "PlotID")
 MBlocation <- SpatialPoints(locations[,.(Easting, Northing)], proj4string = CRS("+proj=utm +zone=14 datum=NAD83"))
