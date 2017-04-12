@@ -228,7 +228,7 @@ FigureB <- ggplot(data = climateWithCompTable[lineTransp == 1,],
         legend.background = element_rect(colour = "black"),
         strip.background = element_rect(colour = "white", fill = "white"),
         strip.text.y = element_text(size = 15),
-        strip.text.x = element_text(size = 15, face = "italic"))
+        strip.text.x = element_text(size = 17, face = "italic"))
 workPath <- "~/GitHub/Climate_Growth"
 
 if(useLogQunatile95){
