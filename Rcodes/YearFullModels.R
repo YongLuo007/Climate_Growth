@@ -8,11 +8,7 @@ if(as.character(Sys.info()[6]) == "yonluo"){
 }
 selectionMethod <- "Year10Analyses"
 analysesDataOrg <- fread(file.path(workPath, "data", selectionMethod, "finalData10.csv"))
-analysesDataAll <- analysesDataOrg[allCensusLiveTree == "yes" ,]
-
-negativeTrees <- unique(analysesDataAll[BiomassGR<=0,]$uniTreeID)
-analysesDataNeg <- analysesDataAll[uniTreeID %in% negativeTrees,]
-analysesDataPos <- analysesDataAll[!(uniTreeID %in% negativeTrees),]
+analysesDataAll <- analysesDataOrg[allCensusLiveTree == "yes",]
 
 studySpecies <- c("All species", "Jack pine", "Trembling aspen", "Black spruce", "Minor species")
 
@@ -65,8 +61,8 @@ for(i in 1:length(fixedCoeffAll)){
   }
 }
 
-rm(getIC, getICformFomula, indispecies, mixedModelSelection, 
-   speciesData)
+rm(indispecies,  i, minABGR,
+   speciesDataAll)
 save.image(file.path(workPath, "data", selectionMethod,
                      "FullYearModels.RData"))
 
