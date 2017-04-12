@@ -68,8 +68,9 @@ analysesDataOrig <- analysesDataOrig[,.(PlotID, uniTreeID, allCensusLiveTree, Sp
 analysesDataOrig[IniDBH == FinDBH, ':='(BiomassGR = 0,
                                         BAGR = 0)]
 analysesDataOrig <- analysesDataOrig[order(Species, PlotID, uniTreeID, IniYear),]
-
-
+analysesDataOrig <- analysesDataOrig[(FinYear-IniYear) == 10, ]
+analysesDataOrig[, measureTime := length(unique(IniYear)), by = PlotID]
+analysesDataOrig[, measureTime := NULL]
 write.csv(analysesDataOrig, 
           file.path(workPath, "data", 
                     "Year10Analyses", "finalData10.csv"),
@@ -131,6 +132,9 @@ set(analysesDataOrig, , c("FinYear2", "FinDBH2", "FinFA2",
                           "GSCO2A", "NONGSCO2A", "positiveGrowthTree",
                           "FinBA2", "plotcensuslength",
                           "BiomassGR2"), NULL)
+
+
+
 write.csv(analysesDataOrig, file.path(workPath, "data", 
                                       selectionMethod, "finalData15.csv"),
           row.names = F)
