@@ -4,9 +4,9 @@ library(nlme); library(dplyr);library(MuMIn); library(gridExtra)
 
 workPath <- "~/GitHub/Climate_Growth"
 
-analysesData <- fread(file.path(workPath, "data", "AllCensus_PositiveGrowth_RandomPlotADTree",
-                                   "finalData.csv"))
-analysesData <- analysesData[allCensusLiveTree == "yes" & positiveGrowthTree == "yes",]
+analysesData <- fread(file.path(workPath, "data", "Year10Analyses",
+                                   "finalData10.csv"))
+analysesData <- analysesData[allCensusLiveTree == "yes",]
 
 allspeciesdata <- data.table::copy(analysesData)
 FigureS1Data <- data.table(PlotID = character(), Year = numeric(), IniYear = numeric(),
@@ -21,29 +21,31 @@ newplotiddata <- unique(measurementLengthData[,.(PlotID, FirstYear, LastYear)], 
 newplotiddata <- newplotiddata[order(FirstYear, LastYear),]
 newplotiddata[, newPlotID:=1:nrow(newplotiddata)]
 measurementLengthData <- setkey(measurementLengthData, PlotID)[setkey(newplotiddata[,.(PlotID, newPlotID)], PlotID), nomatch = 0]
-Non5YearsData <- measurementLengthData[Length != 5,]
+Non10YearsData <- measurementLengthData[Length != 10,]
 
 subFigureS1 <- reshape(data = as.data.frame(newplotiddata), varying = c("FirstYear", "LastYear"), 
                        v.names = "Year",
                        direction = "long", times = c("FirstYear", "LastYear"),
                        timevar = "FirstOrLast") %>%
   data.table
-subFigureS1_1 <- subFigureS1[,.(Year = mean(Year), sdYear = sd(Year), y = 175), by = FirstOrLast]
+subFigureS1_1 <- subFigureS1[,.(Year = mean(Year), sdYear = sd(Year),
+                                y = 130), by = FirstOrLast]
 
 FigureS1_a <- ggplot(data = subFigureS1, aes(x = Year, y = newPlotID))+
   geom_line(aes(group = newPlotID), size = 0.5, col = "gray")+
   geom_point(data = subFigureS1_1, aes(x = Year, y = y), size = 2)+
   geom_errorbarh(data = subFigureS1_1, aes(y = y, xmin = Year-sdYear, xmax = Year+sdYear),
                  size = 0.5, height = 7)+
-  geom_segment(data = Non5YearsData, aes(y = newPlotID, x = IniYear, xend = FinYear, yend = newPlotID,
+  geom_segment(data = Non10YearsData, aes(y = newPlotID, x = IniYear, xend = FinYear, yend = newPlotID,
                                          group = newPlotID, col = as.factor(Length)))+
   scale_color_manual(name = "Measurement length", values = c("red", "green"),
                      label = paste(c(8, 10), " years"))+
-  annotate("text", x = subFigureS1_1$Year, y = 185, size = 3,
-           label = c("Year at first census (mean±SD)", "Year at last census (mean±SD)"))+
-  scale_y_continuous(name = "Plot identity", limits = c(0, 190), breaks = seq(0, 180, by = 30))+
+  annotate("text", x = subFigureS1_1$Year, y = 138, size = 4,
+           label = c("Year at first census (mean±SD)", 
+                     "Year at last census (mean±SD)"))+
+  scale_y_continuous(name = "Plot identity", limits = c(0, 140), breaks = seq(0, 180, by = 30))+
   scale_x_continuous(name = "Year", limits = c(1985, 2012), breaks = seq(1985, 2011, by = 5))+
-  annotate("text", x = 1985, y = 180, label = "a", size = 10)+
+  annotate("text", x = 1985, y = 140, label = "a", size = 11)+
   theme_bw()+
   theme(panel.grid.major = element_blank(),
         panel.grid.minor = element_blank(),
@@ -60,6 +62,8 @@ FigureS1_a <- ggplot(data = subFigureS1, aes(x = Year, y = newPlotID))+
 
 
 allspeciesdatanew <- data.table::copy(analysesData)
+
+
 NofTreeData <- allspeciesdatanew[,.(NofTree=length(unique(uniTreeID)),
                                  IniYear = min(IniYear),
                                  FinYear = max(FinYear)), by = c("PlotID", "Species")]
@@ -82,15 +86,20 @@ summaryPlot[Species == "All species", Species:="All trees"]
 # summaryPlot[, Species:=factor(Species, levels = studySpecies)]
 summaryPlot[,legendTexts:=paste("\n", Species, ": \n", NofPlot, " plots, ", NofTree, " trees, ",
                                 NofObs, " observations.", sep = "")]
+studySpecies1 <- data.table(Species = c("All trees", "Jack pine", 
+                                        "Trembling aspen",
+                  "Black spruce", "Minor species group"),
+                  orders = 1:5)
+a <- dplyr::left_join(studySpecies1, summaryPlot, by = "Species")
 
 FigureS1_b <- ggplot(data = figureS1_bData, aes(x = Year, y = NofTree))+
   geom_line(aes(group = Species, col = Species), size = 1)+
-  scale_y_continuous(name = "Number of tree", limits = c(0, 15000), breaks = seq(0, 10000, by = 2000))+
+  scale_y_continuous(name = "Number of tree", limits = c(0, 16000), breaks = seq(0, 10000, by = 2000))+
   scale_x_continuous(name = "Year", limits = c(1985, 2012), breaks = seq(1985, 2011, by = 5))+
-  scale_color_manual(name = "Species", values = c("white", "red", "blue", "green", "pink"),
-                     labels = summaryPlot$legendTexts)+
-  guides(colour  = guide_legend(nrow = 3))+
-  annotate("text", x = 1985, y = 15000, label = "b", size = 10)+
+  scale_color_manual(values = c("white", "red", "blue", "green", "pink"),
+                     labels = a$legendTexts)+
+  guides(colour  = guide_legend(title = NULL, nrow = 3))+
+  annotate("text", x = 1985, y = 16000, label = "b", size = 11)+
   theme_bw()+
   theme(panel.grid.major = element_blank(),
         panel.grid.minor = element_blank(),
@@ -99,15 +108,16 @@ FigureS1_b <- ggplot(data = figureS1_bData, aes(x = Year, y = NofTree))+
         axis.line.y = element_line(size = 1, colour = "black"),
         axis.text = element_text(size = 12),
         axis.title = element_text(size = 15),
-        legend.position = c(0.53, 0.85),
+        legend.position = c(0.53, 0.88),
         legend.background = element_rect(colour = "black"),
         legend.title = element_blank(),
         legend.key = element_rect(colour = "white"),
-        legend.title = element_text(size = 10),
-        legend.text = element_text(size = 9))
+        # legend.title = element_text(size = 10),
+        legend.text = element_text(size = 10))
 
 FigureS1_a_Grob <- ggplotGrob(FigureS1_a)
 FigureS1_b_Grob <- ggplotGrob(FigureS1_b)
+
 
 FigureS1_a_Grob$widths <- FigureS1_b_Grob$widths
 FigureS1_a_Grob$heights <- FigureS1_b_Grob$heights
