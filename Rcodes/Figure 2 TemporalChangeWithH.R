@@ -62,7 +62,7 @@ for(indispecies in studySpecies){
   rm(fittedvalues, mainTrends)
   
   # change with H
-
+  
   if(nrow(speciesallHcoeff[Direction == "changewithH",]) == 1){
     if(useLogQunatile95){
       H95quantilelower <- exp(as.numeric(quantile(log(speciesData$MidH), probs = 0.025)))
@@ -113,7 +113,7 @@ output[Species == "All species", Species:="All trees"]
 studySpecies <- c("All trees", studySpecies[2:4], "Minor species group")
 output[,':='(Species = factor(Species, levels = studySpecies),
              Direction = factor(Direction, 
-                                levels = c("mainTrend", "changewithH")))]
+                                levels = c("changewithH", "mainTrend")))]
 
 segmenttable <- data.table(Species = "All trees", 
                            Direction = unique(output$Direction),
@@ -127,14 +127,14 @@ segmenttable <- rbind(segmenttable, segmenttable2)
 segmenttable[,':='(Species = factor(Species, 
                                     levels = studySpecies),
                    Direction = factor(Direction, 
-                                      levels = c("mainTrend", "changewithH")))]
+                                      levels = c("changewithH", "mainTrend")))]
 texttable <- data.table(Species = "All trees", 
                         Direction = unique(output$Direction),
                         x = 1989, y = Inf)
 texttable[,':='(Species = factor(Species, 
                                  levels = studySpecies),
                 Direction = factor(Direction, 
-                                   levels = c("mainTrend", "changewithH")))]
+                                   levels = c("changewithH", "mainTrend")))]
 texttable[,texts := letters[as.numeric(Direction)]]
 
 newlabels1 <- list("All trees" = "All trees",
@@ -143,122 +143,69 @@ newlabels1 <- list("All trees" = "All trees",
                    "Black spruce" = "Black spruce",
                    "Minor species group" = "Minor species group")
 
+newlabels2 <- list("changewithH" = expression(atop("Tree-level aboveground biomass growth rate",
+                                                   paste("(Kg ", year^{-1}, " per tree)"))),
+                   "mainTrend" = expression(atop("Plot-level aboveground biomass growth rate",
+                                                 paste("(Kg ", year^{-1}, " per plot)"))))
 figure_labeller <- function(variable,value){
   if(variable == "Species"){
     return(newlabels1[value])
-  } 
-}
-
-
-figureA <- ggplot(data = output[Direction == "mainTrend"], aes(x = Year, y = PredictedABGR))+
-  facet_grid(.~Species, drop = TRUE,
-             labeller = figure_labeller)+
-  geom_ribbon(aes(x = Year, ymin = PredictedABGR_Lower, ymax = PredictedABGR_Upper),
-              col = "white", fill = "gray", show.legend = FALSE)+
-  geom_line(aes(x = Year, y = PredictedABGR,
-                linetype = as.factor(overallSignificant)),
-            col = "black", size = 1, show.legend = FALSE)+
-   scale_y_continuous(name = expression(atop("Plot-level aboveground biomass growth rate",
-                                             paste("(Kg ", year^{-1}, " per plot)"))),
-                      limits = c(0, 82))+
-  scale_x_continuous(name = "Year", breaks = seq(1985, 2010, by = 5))+
-  geom_text(data = data.frame(Year = -Inf, PredictedABGR = Inf,
-                              Species = "All trees", texts = "b"),
-            aes(x = Year, y = PredictedABGR, label = texts), hjust = -1.5, vjust = 1, size = 10)+
-  theme_bw()+
-  theme(panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank(),
-        panel.border = element_blank(),
-        axis.line.x = element_line(colour = "black", size = 1),
-        axis.line.y = element_line(colour = "black", size = 1),
-        axis.text.y = element_text(size = 13),
-        axis.text.x = element_text(size = 13, angle = 45, vjust = 0.5),
-        axis.title = element_text(size = 15),
-        strip.background = element_rect(colour = "white", fill = "white"),
-        strip.text = element_blank())
-
-
-
-
-cutpoint <- 0.6
-output_B <- output[Direction != "mainTrend"][
-  , Panel:= factor("Upper", levels = c("Upper", "Lower"))]
-output_BLower <- output_B[PredictedABGR < cutpoint,][, 
-                        Panel:= factor("Lower", levels = c("Upper", "Lower"))]
-output_B <- rbind(output_B, output_BLower)
-
-newlabels1 <- list("All trees" = "All trees",
-                   "Jack pine" = "Jack pine",
-                   "Trembling aspen" = "Trembling aspen",
-                   "Black spruce" = "Black spruce",
-                   "Minor species group" = "Minor species group")
-newlabels2 <- list("Upper" = "a",
-                   "Lower" = "b")
-figureB_labeller <- function(variable,value){
-  if(variable == "Species"){
-    return(newlabels1[value])
-  } else if (variable == "Panel"){
+  } else if (variable == "Direction"){
     return(newlabels2[value])
   }
 }
 
-figureB <- ggplot(data = output_B[Panel == "Upper"], aes(x = Year, y = PredictedABGR))+
-  facet_grid(Panel~Species, drop = TRUE,
-             scale = "free_y",
-             labeller = figureB_labeller)+
-  geom_line(aes(group = CompetitionIntensity, col = CompetitionIntensity), 
+
+figureA <- ggplot(data = output, aes(x = Year, y = PredictedABGR))+
+  facet_grid(Direction~Species, drop = FALSE, scales = "free_y", switch = "y",
+             labeller = figure_labeller)+
+  geom_ribbon(data = output[Direction == "mainTrend"],
+              aes(x = Year, ymin = PredictedABGR_Lower, ymax = PredictedABGR_Upper),
+              col = "white", fill = "gray", show.legend = FALSE)+
+  geom_line(data = output[Direction == "mainTrend"],
+            aes(x = Year, y = PredictedABGR,
+                linetype = as.factor(overallSignificant)),
+            col = "black", size = 1, show.legend = FALSE)+
+  geom_line(data = output[Direction != "mainTrend"], 
+            aes(x = Year, y = PredictedABGR, group = CompetitionIntensity, 
+                col = CompetitionIntensity), 
             size = 1)+
-  scale_y_continuous(name = expression(atop("Tree-level aboveground biomass growth rate",
-                                            paste("(Kg ", year^{-1}, " per tree)"))))+
-  scale_x_continuous(name = "Year", breaks = seq(1985, 2010, by = 5))+
   scale_color_continuous(name = "Competition \nintensity",
                          low = "#4d9221", high = "#c51b7d", 
                          breaks = c(3, 100),
                          labels = c("\nWeak", "Strong\n"),
                          guide = guide_colorbar(reverse = TRUE, ticks = FALSE))+
-  geom_text(data = data.frame(x = -Inf, y = Inf, Species = "All trees",
-                              Panel = "Upper", texts = "a"),
-            aes(x = x, y = y, label = texts), vjust = 1, hjust = -1.5, size = 10)+
+  scale_x_continuous(name = "Year", breaks = seq(1985, 2010, by = 5))+
+  geom_segment(data = segmenttable, aes(x = x, xend = xend, y = y, yend = yend),
+               size = 1)+
+  geom_text(data = data.frame(Year = -Inf, PredictedABGR = Inf,
+                              Species = "All trees", texts = c("a", "b"),
+                              Direction = c("changewithH", "mainTrend")),
+            aes(x = Year, y = PredictedABGR, label = texts), hjust = -1.5,
+            vjust = 1, size = 10)+
   theme_bw()+
   theme(panel.grid.major = element_blank(),
         panel.grid.minor = element_blank(),
         panel.border = element_blank(),
-        axis.line.x = element_line(colour = "black", size = 1),
-        axis.line.y = element_line(colour = "black", size = 1),
         axis.text.y = element_text(size = 13),
-        axis.title.y = element_text(size = 15),
-        axis.text.x = element_blank(),
-        axis.title.x = element_blank(),
-        strip.text.y = element_blank(),
+        axis.text.x = element_text(size = 13, angle = 45, vjust = 0.5),
+        axis.title.x = element_text(size = 15),
+        axis.title.y = element_blank(),
+        strip.background = element_rect(colour = "white", fill = "white"),
         strip.text.x = element_text(size = 15, face = "italic"),
-        strip.background = element_blank(),
-        # legend.direction = "horizontal",
+        strip.text.y = element_text(size = 15),
         legend.background = element_rect(colour = "black"),
-        legend.position = c(0.70, 0.75),
+        legend.position = c(0.70, 0.85),
         legend.text = element_text(size = 13),
         legend.title = element_text(size = 15))
 
-a_Grob <- ggplotGrob(figureA)
-b_Grob <- ggplotGrob(figureB)
 
-a_Grob$widths <- b_Grob$widths
 
-dev(4)
-clearPlot()
-plotlayout <- rbind(c(1), c(1), c(2), c(2))
-figure <- grid.arrange(b_Grob, a_Grob, 
-                       layout_matrix = plotlayout)
-workPath <- "~/GitHub/Climate_Growth"
-if(useLogQunatile95){
-  ggsave(file = file.path(workPath, "TablesFigures", 
-                          paste("Figure 2. temporal trends with H_95Quantile", selectionMethod, ".png")),
-         figure,  width = 12, height = 10)
-} else {
-  ggsave(file = file.path(workPath, "TablesFigures", 
-                          paste("Figure 2. temporal trends with H", selectionMethod, ".png")),
-         figure,  width = 11, height = 10)
-  
-}
+
+ggsave(file = file.path(workPath, "TablesFigures", 
+                        paste("Figure 2. temporal trends with H_95Quantile", selectionMethod, ".png")),
+       figureA,  width = 12, height = 10)
+
 
 
 
