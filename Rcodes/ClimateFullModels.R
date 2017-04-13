@@ -14,21 +14,22 @@ analysesData <- fread(file.path(workPath, "data", selectionMethod, "finalData10.
 
 analysesData <- analysesData[allCensusLiveTree == "yes",]
 
-studySpecies <- c("All species", "Jack pine", "Trembling aspen", "Black spruce", "Minor species")
+studySpecies <- c("All species", "Jack pine", "Trembling aspen", 
+                  "Black spruce", "Minor species")
 climates <- c("ATA", "GSTA", "NONGSTA",
               "ACMIA", "GSCMIA", 
               "ACO2A")
 fullClimateModels <- list()
 
 for(indispecies in studySpecies){
-  speciesData <- analysesData[Species == indispecies,]
+  speciesData <- analysesData[Species_Group == indispecies,]
   for(indiclimate in climates){
     speciesData$climate <- c(speciesData[, indiclimate, with = FALSE])
     minABGR <- round(abs(min(speciesData$BiomassGR)), 3)+0.01
     speciesData[,':='(logY = log(BiomassGR+minABGR), 
                       logDBHctd = log(MidDBH)-mean(log(MidDBH)), 
                       Climatectd = climate-mean(climate),
-                      logHctd = log(MidH)-mean(log(MidH)),
+                      logHctd = log(H)-mean(log(H)),
                       logSActd = log(MidFA)-mean(log(MidFA)))]
     if(indispecies == "All species"){
       fullClimateModel <- lme(logY~logDBHctd+logSActd+Climatectd+logHctd+logDBHctd:logSActd+
