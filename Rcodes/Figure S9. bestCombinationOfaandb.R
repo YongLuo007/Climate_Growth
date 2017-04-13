@@ -2,11 +2,11 @@ rm(list=ls())
 library(data.table);library(ggplot2); library(dplyr); library(nlme)
 library(SpaDES); library(MuMIn);library(parallel)
 workPath <- "~/GitHub/Climate_Growth"
-selectionMethod <- "AllCensus_PositiveGrowth_RandomPlotADTree"
+selectionMethod <- "Year10Analyses"
 output <- fread(file.path(workPath, "data", selectionMethod,
                              "bestAandB.csv"))
 output[,':='(sizeWeight = as.numeric(sizeWeight), disWeight = as.numeric(disWeight))]
-output <- output[sizeWeight<=8,]
+# output <- output[sizeWeight<=8,]
 a <- melt(output, id.vars = c("Species", "sizeWeight", "disWeight"), 
           measure.vars = c("HAIC"),
           value.name = "Value")
@@ -27,11 +27,11 @@ rectTable <- data.table(Species = factor(c("All trees", "Jack pine",
                                          levels = c("All trees", "", "Jack pine",
                                                     "Trembling aspen", "Black spruce",
                                                     "Minor species")))
-rectTable[,':='(disWeight = 0, xend = 0.9, sizeWeight = 6.5, yend = 8)]
+rectTable[,':='(disWeight = 0, xend = 0.9, sizeWeight = 8.5, yend = 10)]
 alphaTable <- data.table::copy(minvaluepoints)[,':='(disWeight = 0.1, alpha = paste("alpha==", sizeWeight))]
-alphaTable[, sizeWeight := 7.25]
+alphaTable[, sizeWeight := 9.25]
 betaTable <- data.table::copy(minvaluepoints)[,':='(disWeight = 0.5, alpha = paste("beta==", disWeight))]
-betaTable[, sizeWeight := 7.25]
+betaTable[, sizeWeight := 9.25]
 
 
 figure <- ggplot(data=a[Species != "",], aes(x = disWeight, y = sizeWeight))+

@@ -28,7 +28,7 @@ output <- data.table(Species = character(), Direction = character(),
                      PredictedABGR_Lower = numeric(), PredictedABGR_Upper = numeric(),
                      overallSignificant = numeric())
 for(indispecies in studySpecies){
-  speciesData <- analysesDataAll[Species == indispecies,]
+  speciesData <- analysesDataAll[Species_Group == indispecies,]
   speciesallHcoeff <- allHcoeff[Species == indispecies, ]
   theallHmodel <- allfullModelsAll[[indispecies]]
   minBiomass <- round(abs(min(speciesData$BiomassGR)), 3)+0.01

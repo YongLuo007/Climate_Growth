@@ -35,10 +35,10 @@ CO2 <- c("ACO2A")
 longcol <- c(temperature, CMI, CO2)
 majorspecies <- studySpecies
 for(indispecies in majorspecies){
-  speciesData <- analysesData[Species == indispecies,]
+  speciesData <- analysesData[Species_Group == indispecies,]
   if(useLogQunatile95){
-    H95quantilelower <- exp(as.numeric(quantile(log(speciesData$MidH), probs = 0.025)))
-    H95quantileupper <- exp(as.numeric(quantile(log(speciesData$MidH), probs = 0.975)))
+    H95quantilelower <- exp(as.numeric(quantile(log(speciesData$H), probs = 0.025)))
+    H95quantileupper <- exp(as.numeric(quantile(log(speciesData$H), probs = 0.975)))
     climateWithCompetitionTable <- rbind(data.table(expand.grid(Species = indispecies,
                                                                 competitionModel = competitionModel,
                                                                 Climate = as.character(longcol), 
@@ -51,14 +51,14 @@ for(indispecies in majorspecies){
                                                                 competitionModel = competitionModel,
                                                                 Climate = as.character(longcol), 
                                                                 CompetitionName = "H",
-                                                                CompetitionMin = min(speciesData$MidH),
-                                                                CompetitionMax = max(speciesData$MidH),
+                                                                CompetitionMin = min(speciesData$H),
+                                                                CompetitionMax = max(speciesData$H),
                                                                 stringsAsFactors = FALSE))) %>% data.table
   }
   
   climateWithCompetitionTable[CompetitionName == "H",
-                              ':='(CompetitionMinctd = log(CompetitionMin)-mean(log(speciesData$MidH)),
-                                   CompetitionMaxctd = log(CompetitionMax)-mean(log(speciesData$MidH)))]
+                              ':='(CompetitionMinctd = log(CompetitionMin)-mean(log(speciesData$H)),
+                                   CompetitionMaxctd = log(CompetitionMax)-mean(log(speciesData$H)))]
   if(indispecies == "All species"){
     alloutput <- climateWithCompetitionTable
   } else {

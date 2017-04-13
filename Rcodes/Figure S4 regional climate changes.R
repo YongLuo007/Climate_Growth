@@ -8,36 +8,12 @@ allP <- c("APA", "GSPA", "NONGSPA")
 allPET <- c("APETA", "GSPETA", "NONGSPETA")
 allCO2 <- c("ACO2A", "GSCO2A", "NONGSCO2A")
 newlongcol <- c(temperature, allCMI, allP, allPET, allCO2)
-climates <- read.csv(file.path(workPath, "data", "plotClimates.csv"), header = TRUE,
+climates <- read.csv(file.path(workPath, "data", "Year10Analyses",
+                               "plotClimates.csv"), header = TRUE,
                      stringsAsFactors = FALSE) %>%
   data.table
+climates[,Year := (IniYear+FinYear)/2]
 
-climates <- climates[order(PlotID, IniYear),]
-setnames(climates, "FinYear", "MidYear")
-allclimatesvariables <- c("MidYear", temperature, allCMI, allP, allPET, allCO2)
-allclimatesvariablesNew <- paste("Fin_", allclimatesvariables, sep = "")
-
-climates[, (allclimatesvariablesNew) := shift(.SD, 1, NA, type = "lead"), 
-         .SDcols = allclimatesvariables, by = PlotID]
-
-
-climates <- climates[!is.na(Fin_MidYear), ]
-for(i in 2:length(allclimatesvariables)){
-  climates$tempV <- (climates[,allclimatesvariables[i], with = FALSE]+climates[,allclimatesvariablesNew[i], with = FALSE])/2
-  set(climates, , c(allclimatesvariables[i], allclimatesvariablesNew[i]), NULL)
-  setnames(climates, "tempV", allclimatesvariables[i])
-}
-setnames(climates, c("MidYear", "Fin_MidYear"), c("Year", "FinYear"))
-
-
-
-selectionMethod <- "Year10Analyses"
-analysesData <- fread(file.path(workPath, "data", selectionMethod, "finalData10.csv"))
-analysesData <- analysesData[allCensusLiveTree == "yes",]
-analysesDataPlotYear <- unique(analysesData[,.(PlotID, IniYear, FinYear)], by = c("PlotID", "IniYear"))
-
-climates <- setkey(climates, PlotID, IniYear, FinYear)[setkey(analysesDataPlotYear, PlotID, IniYear, FinYear),
-                                                       nomatch = 0]
 
 climate_longform <- reshape(data = climates, varying = newlongcol, v.names = "Value",
                             times = newlongcol, timevar = "DependentVariable", 

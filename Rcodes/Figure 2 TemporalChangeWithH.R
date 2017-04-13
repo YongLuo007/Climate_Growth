@@ -27,7 +27,7 @@ output <- data.table(Species = character(), Direction = character(),
                      PredictedABGR_Lower = numeric(), PredictedABGR_Upper = numeric(),
                      overallSignificant = numeric())
 for(indispecies in studySpecies){
-  speciesData <- analysesDataAll[Species == indispecies,]
+  speciesData <- analysesDataAll[Species_Group == indispecies,]
   minABGR <- round(abs(min(speciesData$BiomassGR)), 3)+0.01
   speciesallHcoeff <- allHcoeff[Species == indispecies, ]
   theallHmodel <- allfullModelsAll[[indispecies]]
@@ -65,8 +65,8 @@ for(indispecies in studySpecies){
   
   if(nrow(speciesallHcoeff[Direction == "changewithH",]) == 1){
     if(useLogQunatile95){
-      H95quantilelower <- exp(as.numeric(quantile(log(speciesData$MidH), probs = 0.025)))
-      H95quantileupper <- exp(as.numeric(quantile(log(speciesData$MidH), probs = 0.975)))
+      H95quantilelower <- exp(as.numeric(quantile(log(speciesData$H), probs = 0.025)))
+      H95quantileupper <- exp(as.numeric(quantile(log(speciesData$H), probs = 0.975)))
       changewithH <- data.table(expand.grid(Species = indispecies,
                                             Direction = "changewithH",
                                             Year = seq(min(speciesData$IniYear), 
@@ -82,15 +82,15 @@ for(indispecies in studySpecies){
                                             Year = seq(min(speciesData$IniYear), 
                                                        max(speciesData$FinYear),
                                                        length = 100), 
-                                            H = exp(seq(log(min(speciesData$MidH)),
-                                                        log(max(speciesData$MidH)),
+                                            H = exp(seq(log(min(speciesData$H)),
+                                                        log(max(speciesData$H)),
                                                         length = 100)),
                                             stringsAsFactors = FALSE))
     }
     
     changewithH[,':='(Yearctd = Year-mean(speciesData$MidYear),
                       logDBHctd = 0,
-                      logHctd = log(H)-mean(log(speciesData$MidH)),
+                      logHctd = log(H)-mean(log(speciesData$H)),
                       logSActd = 0)]
     changewithH[,CompetitionIntensity:=as.numeric(as.factor(H))]
     fittedvalues <- predict(theallHmodel, newdata = changewithH, level = 0, se.fit = TRUE)
@@ -98,11 +98,20 @@ for(indispecies in studySpecies){
     changewithH$PredictedABGR_Upper <- exp(fittedvalues$fit+1.98*fittedvalues$se.fit)-minABGR
     changewithH$PredictedABGR_Lower <- exp(fittedvalues$fit-1.98*fittedvalues$se.fit)-minABGR
     
-    output <- rbind(output, changewithH[,.(Species, Direction, Year, 
-                                           CompetitionIntensity,
-                                           PredictedABGR, PredictedABGR_Lower,
-                                           PredictedABGR_Upper,
-                                           overallSignificant = 0)])
+    if(speciesallHcoeff[rn == "Yearctd:logHctd",]$`p-value` < 0.05){
+      output <- rbind(output, changewithH[,.(Species, Direction, Year, 
+                                            CompetitionIntensity,
+                                            PredictedABGR, PredictedABGR_Lower,
+                                            PredictedABGR_Upper,
+                                            overallSignificant = 1)])
+      
+    } else {
+      output <- rbind(output, changewithH[,.(Species, Direction, Year, 
+                                            CompetitionIntensity,
+                                            PredictedABGR, PredictedABGR_Lower,
+                                            PredictedABGR_Upper,
+                                            overallSignificant = 2)])
+    }
     rm(fittedvalues, changewithH)
   }
 }
@@ -166,7 +175,7 @@ figureA <- ggplot(data = output, aes(x = Year, y = PredictedABGR))+
             aes(x = Year, y = PredictedABGR,
                 linetype = as.factor(overallSignificant)),
             col = "black", size = 1, show.legend = FALSE)+
-  geom_line(data = output[Direction != "mainTrend"], 
+  geom_line(data = output[Direction != "mainTrend" & overallSignificant == 1,], 
             aes(x = Year, y = PredictedABGR, group = CompetitionIntensity, 
                 col = CompetitionIntensity), 
             size = 1)+
@@ -195,7 +204,7 @@ figureA <- ggplot(data = output, aes(x = Year, y = PredictedABGR))+
         strip.text.x = element_text(size = 15, face = "italic"),
         strip.text.y = element_text(size = 15),
         legend.background = element_rect(colour = "black"),
-        legend.position = c(0.70, 0.85),
+        legend.position = c(0.90, 0.75),
         legend.text = element_text(size = 13),
         legend.title = element_text(size = 15))
 

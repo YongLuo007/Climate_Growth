@@ -30,7 +30,7 @@ output <- data.table(Species = character(), Direction = character(),
                      PredictedBAGR_Lower = numeric(), PredictedBAGR_Upper = numeric(),
                      overallSignificant = numeric())
 for(indispecies in studySpecies){
-  speciesData <- analysesDataAll[Species == indispecies,]
+  speciesData <- analysesDataAll[Species_Group == indispecies,]
   minABGR <- round(abs(min(speciesData$BAGR)), 3)+0.01
   speciesallHcoeff <- allHcoeff[Species == indispecies, ]
   theallHmodel <- allfullModelsAll[[indispecies]]
@@ -68,8 +68,8 @@ for(indispecies in studySpecies){
   
   if(nrow(speciesallHcoeff[Direction == "changewithH",]) == 1){
     if(useLogQunatile95){
-      H95quantilelower <- exp(as.numeric(quantile(log(speciesData$MidH), probs = 0.025)))
-      H95quantileupper <- exp(as.numeric(quantile(log(speciesData$MidH), probs = 0.975)))
+      H95quantilelower <- exp(as.numeric(quantile(log(speciesData$H), probs = 0.025)))
+      H95quantileupper <- exp(as.numeric(quantile(log(speciesData$H), probs = 0.975)))
       changewithH <- data.table(expand.grid(Species = indispecies,
                                             Direction = "changewithH",
                                             Year = seq(min(speciesData$IniYear), 
@@ -85,15 +85,15 @@ for(indispecies in studySpecies){
                                             Year = seq(min(speciesData$IniYear), 
                                                        max(speciesData$FinYear),
                                                        length = 100), 
-                                            H = exp(seq(log(min(speciesData$MidH)),
-                                                        log(max(speciesData$MidH)),
+                                            H = exp(seq(log(min(speciesData$H)),
+                                                        log(max(speciesData$H)),
                                                         length = 100)),
                                             stringsAsFactors = FALSE))
     }
     
     changewithH[,':='(Yearctd = Year-mean(speciesData$MidYear),
                       logDBHctd = 0,
-                      logHctd = log(H)-mean(log(speciesData$MidH)),
+                      logHctd = log(H)-mean(log(speciesData$H)),
                       logSActd = 0)]
     changewithH[,CompetitionIntensity:=as.numeric(as.factor(H))]
     fittedvalues <- predict(theallHmodel, newdata = changewithH, level = 0, se.fit = TRUE)
