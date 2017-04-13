@@ -15,12 +15,12 @@ studySpecies <- c("All species", "Jack pine", "Trembling aspen", "Black spruce",
 
 
 for(indispecies in studySpecies){
-  speciesDataAll <- analysesDataAll[Species == indispecies,]
+  speciesDataAll <- analysesDataAll[Species_Group == indispecies,]
   minABGR <- round(abs(min(speciesDataAll$BAGR)), 3)+0.01
   speciesDataAll[,':='(logY = log(BAGR+minABGR), 
                        logDBHctd = log(MidDBH)-mean(log(MidDBH)), 
                        Yearctd = MidYear-mean(MidYear),
-                       logHctd = log(MidH)-mean(log(MidH)),
+                       logHctd = log(H)-mean(log(H)),
                        logSActd = log(MidFA)-mean(log(MidFA)))]
   if(indispecies == "All species"){
     fullModelAll <- lme(logY~logDBHctd+Yearctd+logHctd+logSActd+

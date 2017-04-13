@@ -21,14 +21,14 @@ climates <- c("ATA", "GSTA", "NONGSTA",
 fullClimateModels <- list()
 
 for(indispecies in studySpecies){
-  speciesData <- analysesData[Species == indispecies,]
+  speciesData <- analysesData[Species_Group == indispecies,]
   for(indiclimate in climates){
     speciesData$climate <- c(speciesData[, indiclimate, with = FALSE])
     minABGR <- round(abs(min(speciesData$BAGR)), 3)+0.01
     speciesData[,':='(logY = log(BAGR+minABGR), 
                       logDBHctd = log(MidDBH)-mean(log(MidDBH)), 
                       Climatectd = climate-mean(climate),
-                      logHctd = log(MidH)-mean(log(MidH)),
+                      logHctd = log(H)-mean(log(H)),
                       logSActd = log(MidFA)-mean(log(MidFA)))]
     if(indispecies == "All species"){
       fullClimateModel <- lme(logY~logDBHctd+logSActd+Climatectd+logHctd+logDBHctd:logSActd+
