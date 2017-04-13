@@ -7,10 +7,12 @@ if(as.character(Sys.info()[6]) == "yonluo"){
   workPath <- "J:/MBgrowth"
 }
 
-inputData <- read.csv(file.path(workPath, "data", "plotsummary.csv"), header = TRUE,
+inputData <- read.csv(file.path(workPath, "data", "Year10Analyses",
+                                "plotsummary.csv"), header = TRUE,
                       stringsAsFactors = FALSE) %>%
   data.table
-climateData <- read.csv(file.path(workPath, "data", "StudyAreaClimates_BiomSIM", "plotMonthlyClimates.csv"),
+climateData <- read.csv(file.path(workPath, "data", "StudyAreaClimates_BiomSIM",
+                                  "plotMonthlyClimates.csv"),
                         header = TRUE, stringsAsFactors = FALSE) %>% data.table
 
 names(climateData) <- c("PlotID", "Year_Month", "Temp", "Prep", "PET")
@@ -68,19 +70,19 @@ for(i in 1:nrow(inputData)){
   inputData$ACO2A[i] <- mean(plotclimate[Year > iniyear & Year <= finyear,]$CO2)-mean(plotclimate$CO2) 
   inputData$GSCO2A[i] <- mean(plotclimate[Year > iniyear & Year <= finyear,]$GSCO2)-mean(plotclimate$GSCO2)
   inputData$NONGSCO2A[i] <- mean(plotclimate[Year > iniyear & Year <= finyear,]$NONGSCO2)-mean(plotclimate$NONGSCO2)
-  
 }
 
-write.csv(inputData, file.path(workPath, "data", "plotclimates.csv"), row.names=F)
+write.csv(inputData, file.path(workPath, "data", "Year10Analyses", "plotclimates.csv"), row.names=F)
 
 workPath <- "~/GitHub/Climate_Growth"
-analysesData <- read.csv(file.path(workPath, "data", "AllCensus_PositiveGrowth_RandomPlotADTree",
-                                   "finalData.csv"), header = TRUE,
+analysesData <- read.csv(file.path(workPath, "data", "Year10Analyses",
+                                   "finalData10.csv"), header = TRUE,
                          stringsAsFactors = FALSE) %>% data.table
 
 thedata <- setkey(analysesData, PlotID, IniYear, FinYear)[setkey(inputData, PlotID, IniYear, FinYear),
                                                      nomatch = 0]
 
-write.csv(thedata, file.path(workPath, "data", "newAllDataRescaledComp.csv"), row.names = FALSE)
+write.csv(thedata, file.path(workPath, "data", "Year10Analyses",
+                             "finalData10_New.csv"), row.names = FALSE)
 
 
