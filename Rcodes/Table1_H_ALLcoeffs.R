@@ -16,23 +16,21 @@ allCoeffs <- data.frame(Variable = c("Intercept", "logDBH", "logSA", "logH", "Ye
                         stringsAsFactors = FALSE)
 studySpecies <- c("All species", "Jack pine", "Trembling aspen", "Black spruce", "Minor species")
 
-
-
 for(indispecies in studySpecies){
-  speciesDataAll <- analysesDataAll[Species == indispecies,]
+  speciesDataAll <- analysesDataAll[Species_Group == indispecies,]
   minABGR <- round(abs(min(speciesDataAll$BiomassGR)), 3)+0.01
   speciesDataAll[,':='(logY = log(BiomassGR+minABGR), 
                        logDBHctd = log(MidDBH)-mean(log(MidDBH)), 
                        Yearctd = MidYear-mean(MidYear),
-                       logHctd = log(MidH)-mean(log(MidH)),
+                       logHctd = log(H)-mean(log(H)),
                        logSActd = log(MidFA)-mean(log(MidFA)))]
-
-    fullModelAll <- lmer(logY~logDBHctd+Yearctd+logHctd+logSActd+
-                          logDBHctd:Yearctd+logDBHctd:logHctd+logDBHctd:logSActd+
-                          Yearctd:logHctd+Yearctd:logSActd+
-                          logHctd:logSActd+(Yearctd+1|PlotID/uniTreeID),
-                        data = speciesDataAll)
-
+  
+  fullModelAll <- lmer(logY~logDBHctd+Yearctd+logHctd+logSActd+
+                         logDBHctd:Yearctd+logDBHctd:logHctd+logDBHctd:logSActd+
+                         Yearctd:logHctd+Yearctd:logSActd+
+                         logHctd:logSActd+(Yearctd+1|PlotID/uniTreeID),
+                       data = speciesDataAll)
+  
   
   indiANOVA <- as.data.table(anova(fullModelAll),
                              keep.rownames = TRUE)[,rn:=gsub("ctd", "", rn)]

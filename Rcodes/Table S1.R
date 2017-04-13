@@ -5,26 +5,24 @@ library(nlme); library(dplyr);library(MuMIn); library(gridExtra)
 
 workPath <- "~/GitHub/Climate_Growth"
 
-selectionMethod <- "AllCensus_PositiveGrowth_RandomPlotADTree"
+selectionMethod <- "Year10Analyses"
 
 
-analysesData <- fread(file.path(workPath, "data", selectionMethod, "finalData.csv"))
-analysesData <- analysesData[allCensusLiveTree == "yes" & positiveGrowthTree == "yes",]
+analysesData <- fread(file.path(workPath, "data", selectionMethod, "finalData10.csv"))
+analysesData <- analysesData[allCensusLiveTree == "yes",]
 studySpecies <- c("All species", "Jack pine", "Trembling aspen",
                   "Black spruce", "Minor species")
 
 for(indispecies in studySpecies){
   speciesdata <- analysesData[Species == indispecies,.(PlotID, uniTreeID, ABGR = BiomassGR,
-                                                       logABGR = log(BiomassGR),
-                                                         DBH = IniDBH, logDBH = log(IniDBH),
-                                                        SA = IniFA, logSA = log(IniFA),
-                                                        H, logH = log(H), 
-                                                       Year, 
-                                                         ATA, GSTA, NONGSTA,
-                                                         APA, GSPA, NONGSPA,
-                                                         ACMIA, GSCMIA, NONGSCMIA,
-                                                         ACO2A, GSCO2A, NONGSCO2A)]
-  tempcolnames <- names(speciesdata)[3:23]
+                                                       DBH = MidDBH, logDBH = log(MidDBH),
+                                                       SA = MidFA, logSA = log(MidFA),
+                                                       H = MidH, logH = log(MidH), 
+                                                       Year = MidYear, 
+                                                       ATA, GSTA, NONGSTA,
+                                                       ACMIA, GSCMIA, 
+                                                       ACO2A)]
+  tempcolnames <- names(speciesdata)[3:length(names(speciesdata))]
   speciesdata <- reshape(data = speciesdata, varying = tempcolnames,
                          v.names = "Values",
                          timevar = "tempV",
