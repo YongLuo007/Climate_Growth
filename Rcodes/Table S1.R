@@ -14,14 +14,16 @@ studySpecies <- c("All species", "Jack pine", "Trembling aspen",
                   "Black spruce", "Minor species")
 
 for(indispecies in studySpecies){
-  speciesdata <- analysesData[Species == indispecies,.(PlotID, uniTreeID, ABGR = BiomassGR,
+  speciesdata <- analysesData[Species_Group == indispecies,.(PlotID, uniTreeID, ABGR = BiomassGR,
                                                        DBH = MidDBH, logDBH = log(MidDBH),
                                                        SA = MidFA, logSA = log(MidFA),
-                                                       H = MidH, logH = log(MidH), 
+                                                       H = H, logH = log(H), 
+
                                                        Year = MidYear, 
                                                        ATA, GSTA, NONGSTA,
                                                        ACMIA, GSCMIA, 
                                                        ACO2A)]
+
   tempcolnames <- names(speciesdata)[3:length(names(speciesdata))]
   speciesdata <- reshape(data = speciesdata, varying = tempcolnames,
                          v.names = "Values",
@@ -34,12 +36,22 @@ for(indispecies in studySpecies){
   speciesdata[,Variable:=tempcolnames]
   logColNames <- tempcolnames[grep("log", tempcolnames)]
   speciesdata[!(Variable %in% logColNames), summary := paste(mean, " ± ", sd, "(",
-                                                min, " to ", max, ")", sep = "")]
+                                                min, " ~ ", max, ")", sep = "")]
   speciesdata[Variable %in% logColNames, summary:=paste(round(exp(mean), 2), " ± ",
                                                         round(exp(sd), 2))]
 
   speciesdata <- speciesdata[,.(tempV, Variable, summary)]
   names(speciesdata)[3] <- indispecies
+  speciesdataaddon <- analysesData[Species_Group == indispecies,
+                                   .(tempV = length(tempcolnames)+1,
+                                     Variable = "Q95H",
+                                     Q95H = paste(round(quantile(H, 0.025), 2),
+                                                  round(quantile(H, 0.975), 2),
+                                                  sep = " ~ "))]
+  
+  names(speciesdataaddon)[3] <- indispecies
+  speciesdata <- rbind(speciesdata, speciesdataaddon)
+  
   if(indispecies == "All species"){
     Table1Output <- speciesdata
     rm(speciesdata)
