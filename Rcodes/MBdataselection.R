@@ -51,34 +51,52 @@ allPSP[,FA:=Year-baseYear+baseFA]
 allPSP[,':='(baseTreeAge = NULL, baseYear = NULL, baseFA = NULL)]
 allPSP[,':='(uniTreeID = paste(PlotID, "_", TreeNumber, sep = ""))]
 
+# 6. plot level minimum 3 5-periods
+selectedPlots <- unique(allPSP[,.(PlotID, Year)], by = c("PlotID", "Year"))
+
+selectedPlots <- selectedPlots[order(PlotID, Year),]
+
+newcol1 <- "MidYear"
+newcol2 <- "FinYear"
+col <- "Year"
+selectedPlots[, c(newcol1, newcol2):=c(shift(.SD, n = 1, fill = NA, type = "lead"),
+                                       shift(.SD, n = 2, fill = NA, type = "lead")),
+              .SDcols = col, by = PlotID]
+selectedPlots <- selectedPlots[!is.na(FinYear),]
+selectedPlots[, ':='(first5P = MidYear - Year,
+                     second5P = FinYear - MidYear)]
+selectedPlots <- selectedPlots[first5P == 5 & second5P == 5,]
+length(unique(selectedPlots$PlotID)) # 125 plots
+
+
 # save a file for calculating compeitition
 write.csv(allPSP, file.path(workPath, "data", "Year10Analyses", "forcompetitionIndex.csv"), row.names = FALSE)
 
 
-
+allPSP <- allPSP[PlotID %in% unique(selectedPlots$PlotID),]
 ####$$$$%%%%%%%%%% tree level selection
 # 1. select all alive trees
-length(unique(allPSP$uniTreeID)) # 43296 trees
+length(unique(allPSP$uniTreeID)) # 40554 trees
 unique(allPSP$Status) #  1  2  4  0  9 NA  8
 allPSP[,':='(unhealthyTrees=max(Status)), by = uniTreeID]
 length(unique(allPSP[is.na(unhealthyTrees),]$uniTreeID)) # 20 trees that have NA status
 allPSP <- allPSP[!is.na(unhealthyTrees),]
-length(unique(allPSP$uniTreeID)) # 43276
-length(unique(allPSP[unhealthyTrees==2,]$uniTreeID)) # 3471 trees have physical damage
+length(unique(allPSP$uniTreeID)) # 40534
+length(unique(allPSP[unhealthyTrees==2,]$uniTreeID)) # 3233 trees have physical damage
 allPSP <- allPSP[unhealthyTrees!=2,]
-length(unique(allPSP$uniTreeID)) # 39805
+length(unique(allPSP$uniTreeID)) # 37301
 length(unique(allPSP[unhealthyTrees==4,]$uniTreeID)) # 10 trees have severe insect attack
 allPSP <- allPSP[unhealthyTrees!=4,]
-length(unique(allPSP$uniTreeID)) # 39795
-length(unique(allPSP[unhealthyTrees==9,]$uniTreeID)) # 360 trees have unknown causes of death
+length(unique(allPSP$uniTreeID)) # 37291
+length(unique(allPSP[unhealthyTrees==9,]$uniTreeID)) # 306 trees have unknown causes of death
 allPSP <- allPSP[unhealthyTrees!=9,]
-length(unique(allPSP$uniTreeID)) # 39437
+length(unique(allPSP$uniTreeID)) # 36985
 length(unique(allPSP[unhealthyTrees==8,]$uniTreeID)) # 1 tree's death due to wind/snow 
 allPSP <- allPSP[unhealthyTrees!=8,]
-length(unique(allPSP$uniTreeID)) # 39436
+length(unique(allPSP$uniTreeID)) # 36984
 
 ###############################
-# there are 39436 trees
+# there are 36984 trees
 ###############################
 allPSP[,':='(firstPlotYear = min(Year), lastPlotYear = max(Year)), by = PlotID]
 allPSP[,':='(firstTreeYear = min(Year), lastTreeYear = max(Year)), by = uniTreeID]
@@ -87,9 +105,8 @@ allPSP[firstPlotYear != firstTreeYear, RecruitMent := 1]
 length(unique(allPSP[RecruitMent == 1,]$uniTreeID)) # 9 trees recruited (interesting)
 allPSP[lastPlotYear == lastTreeYear, Mortality := 0]
 allPSP[lastPlotYear != lastTreeYear, Mortality := 1]
-length(unique(allPSP[Mortality == 1,]$uniTreeID)) # 17292 trees (make sense)
-# 20627/52336 = 0.3941 
-# 20627/nrow(allPSP) = 0.11 ()
+length(unique(allPSP[Mortality == 1,]$uniTreeID)) # 16297 trees (make sense)
+
 
 
 allPSP <- allPSP[order(uniTreeID, Year),]
