@@ -66,10 +66,11 @@ allspeciesdatanew <- data.table::copy(analysesData)
 
 NofTreeData <- allspeciesdatanew[,.(NofTree=length(unique(uniTreeID)),
                                  IniYear = min(IniYear),
-                                 FinYear = max(FinYear)), by = c("PlotID", "Species")]
+                                 FinYear = max(FinYear)), by = c("PlotID", "Species_Group")]
 figureS1_bData <- data.table(Species = character(), NofTree = numeric(), Year = numeric())
 for(i in 1:nrow(NofTreeData)){
-  adddata <- data.table(Species = NofTreeData$Species[i], NofTree = NofTreeData$NofTree[i],
+  adddata <- data.table(Species = NofTreeData$Species_Group[i], 
+                        NofTree = NofTreeData$NofTree[i],
                         Year = seq(NofTreeData$IniYear[i], NofTreeData$FinYear[i], by = 1))
   figureS1_bData <- rbind(figureS1_bData, adddata)
 }
@@ -80,9 +81,10 @@ studySpecies <- c("All species", "Jack pine", "Trembling aspen",
 figureS1_bData[,Species:=factor(Species, 
                                 levels = studySpecies)]
 summaryPlot <- allspeciesdatanew[,.(NofPlot = length(unique(PlotID)), NofTree = length(unique(uniTreeID)),
-                                    NofObs = length(IniBA)), by = Species]
-summaryPlot[Species == "Minor species", Species:="Minor species group"]
-summaryPlot[Species == "All species", Species:="All trees"]
+                                    NofObs = length(IniBA)), by = Species_Group]
+summaryPlot[, Species := Species_Group]
+summaryPlot[Species_Group == "Minor species", Species:="Minor species group"]
+summaryPlot[Species_Group == "All species", Species:="All trees"]
 # summaryPlot[, Species:=factor(Species, levels = studySpecies)]
 summaryPlot[,legendTexts:=paste("\n", Species, ": \n", NofPlot, " plots, ", NofTree, " trees, ",
                                 NofObs, " observations.", sep = "")]
