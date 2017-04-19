@@ -1,5 +1,5 @@
 # Competition mediates climate change-tree growth relationship
-Examine the role of competition in expressing climate change-tree growth relationship
+Examine the role of competition in expressing climate change-tree growth relationships
 
 ## Data
 
@@ -10,26 +10,24 @@ The data were selected using
 
 ```r
 source(file.path(".", "Rcodes", "MBdataselection.R"))
-```
-
-The independent variables (IDVs) were incorporated into the data using
-
-```r
 source(file.path(".", "Rcodes", "IDV preparation.R"))
+source(file.path(".", "Rcodes", "assignCI.R"))
 ```
+
+
 The Hegyi index were derived from  `HeghyiCICalculationModified.R` in Rfunctions folder.
 The climate anomalies that derived from BioSIM is in data folder.
 
 ## Data analyses
 
 ### Examine temporal trends of tree growth
-For each species among Jack pine, Trembling aspen and Black spruce, mixed models that account for random intercept had been developed using `lme` function in `nlme` package.
-In the model selection process, the backward model selection based on AIC approach was used. The process was implemented using `mixedModelSelection.R`
+For each species group among all trees, Jack pine, trembling aspen, black spruce and minor species group, mixed models that account for random intercept at tree and plot level, and random slopes of Year at these levels had been developed using `lme` function in `nlme` package. The models were conducted as a full model forms.
 
 ```r
-source(file.path(".", "Rcodes", "BestYearModels.R"))
+source(file.path(".", "Rcodes", "YearFullModels.R"))
+
 ```
-For each species, a best model was determined based on smallest AIC and was considered as the final model that was reported in the results.
+
 
 ### Examine climate changes and their associations with tree growth
 
