@@ -3,55 +3,12 @@ rm(list = ls())
 library(data.table); library(ggplot2); library(SpaDES)
 library(nlme); library(dplyr);library(MuMIn);library(gridExtra);library(grid)
 library(raster);library(maptools);library(rgeos)
+library(ade4)
 workPath <- "~/GitHub/Climate_Growth"
-selectionMethod <- "AllCensus_PositiveGrowth_RandomPlotADTree"
+selectionMethod <- "Year10Analyses"
 load(file.path(workPath, "data",selectionMethod,
-               "BestYearModels.RData"))
+               "FullYearModels.RData"))
 workPath <- "~/GitHub/Climate_Growth"
-for(indispecies in studySpecies){
-  allHbestFormula <- allHbestFormulas[[indispecies]]
-  theallHmodel <- allHbestModels[[indispecies]]
-  speciesData <- analysesData[Species == indispecies,]
-  speciesData[,':='(logY = log(BiomassGR), 
-                    logDBHctd = log(IniDBH)-mean(log(IniDBH)), 
-                    Yearctd = 0,
-                    logHctd = log(H)-mean(log(H)),
-                    logSActd = log(IniFA+2.5)-mean(log(IniFA+2.5)))]
-  speciesData$fittelogY <- predict(theallHmodel, newdata = speciesData,
-                                   level = 0, se.fit = FALSE)
-  plotRandom <- as.data.table(random.effects(theallHmodel)$PlotID,
-                              keep.rownames = TRUE)
-  names(plotRandom) <- c("PlotID", "PlotEffect")
-  treeRandom <- as.data.table(random.effects(theallHmodel)$uniTreeID,
-                              keep.rownames = TRUE)
-  names(treeRandom) <- c("uniTreeID", "TreeEffect")
-  treeRandom[, uniTreeID:=unlist(lapply(uniTreeID, 
-                                  function(s) unlist(strsplit(s, split = "/", fixed = T))[2]))]
-  speciesData <- setkey(speciesData, PlotID)[setkey(plotRandom, PlotID),
-                                             nomatch = 0]
-  speciesData <- setkey(speciesData, uniTreeID)[setkey(treeRandom, uniTreeID),
-                                             nomatch = 0]
-  
-  speciesData[, logYResiduals:=logY-fittelogY-PlotEffect-TreeEffect]
-  
-  selectedplots <- unique(speciesData$PlotID)
-  for(indiplot in selectedplots){
-    indiplotdata <- speciesData[PlotID == indiplot,]
-    linearRegression <- lm(logYResiduals~Year+logSActd:Year+Year:logHctd+Year:logDBHctd, data = indiplotdata)
-    plotcoeffs <- as.data.table(summary(linearRegression)$coefficients,
-                                keep.rownames = TRUE)
-    plotcoeffs <- plotcoeffs[rn == "Year",.(Species = indispecies,
-                                            PlotID = indiplot, 
-                                            slope = Estimate,
-                                            P = `Pr(>|t|)`)]
-    if(indispecies == studySpecies[1] & indiplot == selectedplots[1]){
-      allslopes <- plotcoeffs
-    } else {
-      allslopes <- rbind(allslopes, plotcoeffs)
-    }
-  }
-}
-
 locations <- read.csv(file.path(workPath, "data", "selectedPlotMasterTable.csv"),
                       header = TRUE,
                       stringsAsFactors = FALSE) %>%
@@ -60,7 +17,36 @@ locations <- locations[,.(PlotID, Zone = 14, Easting, Northing)] %>%
   unique(., by = "PlotID")
 source(file.path(workPath, "Rcodes", "Rfunctions", "UTMtoLongLat.R"))
 locations <- UTMtoLongLat(locations, "+proj=longlat")$Transformed
-library(ade4)
+
+
+for(indispecies in studySpecies){
+  theallHmodel <- allfullModelsAll[[indispecies]]
+  plotRandom <- as.data.table(random.effects(theallHmodel)$PlotID,
+                              keep.rownames = TRUE)
+  names(plotRandom) <- c("PlotID", "PlotIntercept", "PlotSlope")
+  plotRandom <- plotRandom[,.(Species = indispecies,
+                              PlotID, PlotIntercept, PlotSlope)]
+  treeRandom <- as.data.table(random.effects(theallHmodel)$uniTreeID,
+                              keep.rownames = TRUE)
+  names(treeRandom) <- c("PlotIDuniTreeID", "TreeIntercept", "TreeSlope")
+  treeRandom[, PlotID:=unlist(lapply(PlotIDuniTreeID, 
+                                        function(s) unlist(strsplit(s, split = "/", fixed = T))[1]))]
+  treeRandom[, uniTreeID:=unlist(lapply(PlotIDuniTreeID, 
+                                  function(s) unlist(strsplit(s, split = "/", fixed = T))[2]))]
+  MeanTreeRandom <- treeRandom[,.(Species = indispecies,
+                                  MeanTreeIntercept = mean(TreeIntercept),
+                                  MeanTreeSlope = mean(TreeSlope)),
+                               by = "PlotID"]
+  indispeciesrandom <- setkey(plotRandom, PlotID, Species)[setkey(MeanTreeRandom, PlotID, Species),
+                                                   nomatch = 0]
+  if(indispecies == "All species"){
+    allRandom <- indispeciesrandom
+  } else {
+    allRandom <- rbind(allRandom, indispeciesrandom)
+  }
+}
+
+
 
 canadamap <- readRDS(file.path(workPath,
                                "data",
@@ -76,39 +62,38 @@ MBProvince <- canadamap[canadamap@data$NAME  == "Manitoba", ]
 studyArea <- gIntersection(boreal, MBProvince)
 studyAreaall <- fortify(studyArea, region = "id") %>% data.table
 
-allslopesOg <- data.table::copy(allslopes)
-allslopes <- data.table::copy(allslopesOg)
-makeupRaster <- data.frame(expand.grid(y = seq(1.5, 2.5, length = 50),
-                                       x = seq(min(allslopes$slope),
-                                               max(allslopes$slope),
+
+makeupRaster_PlotSlope <- data.frame(expand.grid(y = seq(1.5, 2.5, length = 50),
+                                       x = seq(min(allRandom$PlotSlope),
+                                               max(allRandom$PlotSlope),
                                                length = 100)))
 
-legendPlot <- ggplot(data = data.frame(x = c(min(allslopes$slope), 
-                                             max(allslopes$slope)),
+legendPlot_PlotSlope <- ggplot(data = data.frame(x = c(min(allRandom$PlotSlope), 
+                                             max(allRandom$PlotSlope)),
                                        y = c(0, 5)), aes(x = x, y = y)) +
   geom_point(col = "white")+
   geom_rect(data = data.frame(x = -Inf, xmax = Inf, y = 0.7, ymax = 3.3), 
             aes(xmin = x, xmax = xmax, ymin = y, ymax = ymax), col = "black", fill = "white")+
-  geom_raster(data = makeupRaster, aes(x = x, y = y, fill = x))+
+  geom_raster(data = makeupRaster_PlotSlope, aes(x = x, y = y, fill = x))+
   scale_fill_gradient2(low="red", mid = "gray", high = "green", guide = "none")+
-  geom_point(data = data.frame(y = 1.3, x = seq(min(allslopes$slope), 
-                                                max(allslopes$slope),
+  geom_point(data = data.frame(y = 1.3, x = seq(min(allRandom$PlotSlope), 
+                                                max(allRandom$PlotSlope),
                                                 length = 7),
                                texts = sprintf("%0.2f", 
-                                               round(seq(min(allslopes$slope), 
-                                                         max(allslopes$slope),
+                                               round(seq(min(allRandom$PlotSlope), 
+                                                         max(allRandom$PlotSlope),
                                                          length = 7), 2))),
              aes(x = x, y = y), pch = 17, size = 2)+
-  geom_text(data = data.frame(y = 1, x = seq(min(allslopes$slope), 
-                                             max(allslopes$slope),
+  geom_text(data = data.frame(y = 1, x = seq(min(allRandom$PlotSlope), 
+                                             max(allRandom$PlotSlope),
                                              length = 7),
                               texts = sprintf("%0.2f", 
-                                              round(seq(min(allslopes$slope), 
-                                                        max(allslopes$slope),
+                                              round(seq(min(allRandom$PlotSlope), 
+                                                        max(allRandom$PlotSlope),
                                                         length = 7), 2))),
             aes(x = x, y = y, label = texts), size = 5)+
-  geom_text(data = data.frame(y = 3, x = min(allslopes$slope),
-                              texts = "Effect of Year on residuals"),
+  geom_text(data = data.frame(y = 3, x = min(allRandom$PlotSlope),
+                              texts = "Plot-level random slope of Year"),
             aes(x = x, y = y, label = texts), hjust = 0, size = 7)+
   theme_bw()+
   theme(panel.grid.major = element_blank(),
@@ -122,31 +107,31 @@ legendPlot <- ggplot(data = data.frame(x = c(min(allslopes$slope),
 
 k <- 1
 mantelTestResults <- list()
-allfigures <- list()
+allfigures_PlotSlope <- list()
 
 for(indispecies in studySpecies){
-  indispeciesslopes <- allslopesOg[Species==indispecies,][,Species:=NULL]
-  allslopeswithLocation <- setkey(locations, PlotID)[setkey(indispeciesslopes, PlotID),
+  indispeciesslopes <- allRandom[Species==indispecies,][,Species:=NULL]
+  allslopeswithLocation <- setkey(indispeciesslopes, PlotID)[setkey(locations, PlotID),
                                                      nomatch = 0]
   plot_dists <- dist(cbind(allslopeswithLocation$Longitude,
                            allslopeswithLocation$Latitude))
-  slope_dists <- dist(allslopeswithLocation$slope)
+  slope_dists <- dist(allslopeswithLocation$PlotSlope)
   a <- mantel.rtest(plot_dists, slope_dists, nrepet = 9999)$pvalue
   mantelTestResults[[indispecies]] <- paste("Mantel~test:~italic(P)==", round(a, 2), sep = "")
   indispeciesLocations <- SpatialPoints(allslopeswithLocation[,.(Easting, Northing)],
                               proj4string = CRS("+proj=utm +zone=14 datum=NAD83"))
   indispeciesLocations <- spTransform(indispeciesLocations, crs(canadamap))
   indispeciesLocations <- as.data.frame(indispeciesLocations@coords) %>% data.table
-  indispeciesLocations$slope <- allslopeswithLocation$slope
+  indispeciesLocations$slope <- allslopeswithLocation$PlotSlope
   indispeciesLocations$Species <- indispecies
-  allfigures[[indispecies]] <- ggplot(data = studyAreaall, aes(x = long, y = lat)) +
+  allfigures_PlotSlope[[indispecies]] <- ggplot(data = studyAreaall, aes(x = long, y = lat)) +
     geom_polygon(data = studyAreaall, aes(group = group), col = "blue", 
                  alpha = 0, linetype = 2, size = 1)+
     geom_point(data = indispeciesLocations,
                aes(x = Easting, y = Northing, col = slope), size = 4)+
     scale_color_gradient2(low="red", mid = "gray", high = "green",
-                          limits = c(min(allslopes$slope),
-                                       max(allslopes$slope)),
+                          limits = c(min(allRandom$PlotSlope),
+                                       max(allRandom$PlotSlope)),
                           guide = "none")+
     geom_text(data = data.frame(y = Inf, x = -Inf, texts = letters[k]),
               aes(x = x, y = y, label = texts), size = 10, hjust = -1.5, vjust = 1.5)+
@@ -169,11 +154,113 @@ for(indispecies in studySpecies){
 }
 
 plotlayout <- rbind(c(1,2), c(3, 4), c(5, 6))
-a <- grid.arrange(allfigures[[1]], legendPlot, allfigures[[2]], allfigures[[3]],
-                  allfigures[[4]],allfigures[[5]],
+allfiguresPlotSlope <- grid.arrange(allfigures_PlotSlope[[1]], legendPlot_PlotSlope, 
+                                    allfigures_PlotSlope[[2]], allfigures_PlotSlope[[3]],
+                  allfigures_PlotSlope[[4]],allfigures_PlotSlope[[5]],
                   layout_matrix = plotlayout)
 ggsave(file = file.path(workPath, "TablesFigures", 
-                        paste("Figure S10. Spatial Autocorrelation check_Slope.png")),
-       a, width = 12.5, height = 14.5)
+                        paste("Figure S10. Spatial Autocorrelation check_PlotSlope.png")),
+       allfiguresPlotSlope, width = 12.5, height = 14.5)
+
+
+makeupRaster_meanTreeSlope <- data.frame(expand.grid(y = seq(1.5, 2.5, length = 50),
+                                                     x = seq(min(allRandom$MeanTreeSlope),
+                                                             max(allRandom$MeanTreeSlope),
+                                                             length = 100)))
+
+legendPlot_meanTreeSlope <- ggplot(data = data.frame(x = c(min(allRandom$MeanTreeSlope), 
+                                                           max(allRandom$MeanTreeSlope)),
+                                                     y = c(0, 5)), aes(x = x, y = y)) +
+  geom_point(col = "white")+
+  geom_rect(data = data.frame(x = -Inf, xmax = Inf, y = 0.7, ymax = 3.3), 
+            aes(xmin = x, xmax = xmax, ymin = y, ymax = ymax), col = "black", fill = "white")+
+  geom_raster(data = makeupRaster_meanTreeSlope, aes(x = x, y = y, fill = x))+
+  scale_fill_gradient2(low="red", mid = "gray", high = "green", guide = "none")+
+  geom_point(data = data.frame(y = 1.3, x = seq(min(allRandom$MeanTreeSlope), 
+                                                max(allRandom$MeanTreeSlope),
+                                                length = 7),
+                               texts = sprintf("%0.2f", 
+                                               round(seq(min(allRandom$MeanTreeSlope), 
+                                                         max(allRandom$MeanTreeSlope),
+                                                         length = 7), 2))),
+             aes(x = x, y = y), pch = 17, size = 2)+
+  geom_text(data = data.frame(y = 1, x = seq(min(allRandom$MeanTreeSlope), 
+                                             max(allRandom$MeanTreeSlope),
+                                             length = 7),
+                              texts = sprintf("%0.2f", 
+                                              round(seq(min(allRandom$MeanTreeSlope), 
+                                                        max(allRandom$MeanTreeSlope),
+                                                        length = 7), 2))),
+            aes(x = x, y = y, label = texts), size = 5)+
+  geom_text(data = data.frame(y = 3, x = min(allRandom$MeanTreeSlope),
+                              texts = "Average tree-level random slope of Year"),
+            aes(x = x, y = y, label = texts), hjust = 0, size = 7)+
+  theme_bw()+
+  theme(panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.border = element_blank(),
+        axis.title = element_blank(),
+        axis.text = element_blank(),
+        axis.ticks = element_blank())
+
+
+
+k <- 1
+mantelTestResults <- list()
+allfigures_meanTreeSlope <- list()
+
+for(indispecies in studySpecies){
+  indispeciesslopes <- allRandom[Species==indispecies,][,Species:=NULL]
+  allslopeswithLocation <- setkey(indispeciesslopes, PlotID)[setkey(locations, PlotID),
+                                                             nomatch = 0]
+  plot_dists <- dist(cbind(allslopeswithLocation$Longitude,
+                           allslopeswithLocation$Latitude))
+  slope_dists <- dist(allslopeswithLocation$MeanTreeSlope)
+  a <- mantel.rtest(plot_dists, slope_dists, nrepet = 9999)$pvalue
+  mantelTestResults[[indispecies]] <- paste("Mantel~test:~italic(P)==", round(a, 2), sep = "")
+  indispeciesLocations <- SpatialPoints(allslopeswithLocation[,.(Easting, Northing)],
+                                        proj4string = CRS("+proj=utm +zone=14 datum=NAD83"))
+  indispeciesLocations <- spTransform(indispeciesLocations, crs(canadamap))
+  indispeciesLocations <- as.data.frame(indispeciesLocations@coords) %>% data.table
+  indispeciesLocations$slope <- allslopeswithLocation$MeanTreeSlope
+  indispeciesLocations$Species <- indispecies
+  allfigures_meanTreeSlope[[indispecies]] <- ggplot(data = studyAreaall, aes(x = long, y = lat)) +
+    geom_polygon(data = studyAreaall, aes(group = group), col = "blue", 
+                 alpha = 0, linetype = 2, size = 1)+
+    geom_point(data = indispeciesLocations,
+               aes(x = Easting, y = Northing, col = slope), size = 4)+
+    scale_color_gradient2(low="red", mid = "gray", high = "green",
+                          limits = c(min(allRandom$MeanTreeSlope),
+                                     max(allRandom$MeanTreeSlope)),
+                          guide = "none")+
+    geom_text(data = data.frame(y = Inf, x = -Inf, texts = letters[k]),
+              aes(x = x, y = y, label = texts), size = 10, hjust = -1.5, vjust = 1.5)+
+    annotate("text", x = Inf, y = -Inf, 
+             label = mantelTestResults[[indispecies]], parse = TRUE,
+             size = 5, vjust = -1.5, hjust = 1.2)+
+    theme_bw()+
+    theme(panel.grid.major = element_blank(),
+          panel.grid.minor = element_blank(),
+          panel.border = element_rect(colour = "black", size = 1),
+          axis.title = element_blank(),
+          axis.text = element_blank(),
+          axis.ticks = element_blank())
+  k <- k+1
+  if(indispecies == studySpecies[1]){
+    allSpeciesLocations <- indispeciesLocations
+  } else {
+    allSpeciesLocations <- rbind(allSpeciesLocations, indispeciesLocations)
+  }
+}
+
+plotlayout <- rbind(c(1,2), c(3, 4), c(5, 6))
+allfiguresMeanTreeSlope <- grid.arrange(allfigures_meanTreeSlope[[1]], legendPlot_meanTreeSlope, 
+                                        allfigures_meanTreeSlope[[2]], allfigures_meanTreeSlope[[3]],
+                                        allfigures_meanTreeSlope[[4]],allfigures_meanTreeSlope[[5]],
+                                        layout_matrix = plotlayout)
+ggsave(file = file.path(workPath, "TablesFigures", 
+                        paste("Figure S11. Spatial Autocorrelation check_MeanTreeSlope.png")),
+       allfiguresMeanTreeSlope, width = 12.5, height = 14.5)
+
 
 
