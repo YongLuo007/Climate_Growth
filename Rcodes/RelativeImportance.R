@@ -32,11 +32,11 @@ for(indispecies in studySpecies){
   speciesData <- analysesData[Species_Group == indispecies, ]
   minABGR <- round(abs(min(speciesData$BiomassGR)), 3)+0.01
   speciesData[,':='(logY = log(BiomassGR+minABGR), 
-                       logDBH = log(MidDBH)-mean(log(MidDBH)), 
-                       Year = MidYear-mean(MidYear),
-                       logH = log(H)-mean(log(H)),
-                       logSA = log(MidFA)-mean(log(MidFA)))]
-
+                    logDBH = log(MidDBH)-mean(log(MidDBH)), 
+                    Year = MidYear-mean(MidYear),
+                    logH = log(H)-mean(log(H)),
+                    logSA = log(MidFA)-mean(log(MidFA)))]
+  
   speciesData[,':='(logDBHlogH = logDBH*logH,
                     logDBHlogSA = logDBH*logSA, 
                     logDBHYear = logDBH*Year, 
@@ -52,8 +52,8 @@ for(indispecies in studySpecies){
                      type = c("lmg"),
                      b = 1000,
                      design = des,
-                     groups = grouplistallH,
-                     groupnames = groupnames,
+                     # groups = grouplistallH,
+                     # groupnames = groupnames,
                      rela = TRUE)
   bt <- booteval.relimp(bt1, level = c(0.95))
   tempfixedLmg <- attributes(bt)
