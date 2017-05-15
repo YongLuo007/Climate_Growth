@@ -15,7 +15,11 @@ studySpecies <- c("All species", "Jack pine", "Trembling aspen", "Black spruce",
 
 
 for(indispecies in studySpecies){
-  speciesDataAll <- analysesDataAll[Species_Group == indispecies,]
+  if(indispecies == "All species"){
+    speciesDataAll <- analysesDataAll[Species_Group != indispecies,]
+  } else {
+    speciesDataAll <- analysesDataAll[Species_Group == indispecies,]
+  }
   minABGR <- round(abs(min(speciesDataAll$BiomassGR)), 3)+0.01
   speciesDataAll[,':='(logY = log(BiomassGR+minABGR), 
                        logDBHctd = log(MidDBH)-mean(log(MidDBH)), 
@@ -28,7 +32,7 @@ for(indispecies in studySpecies){
                           Yearctd:logHctd+Yearctd:logSActd+
                           logHctd:logSActd,
                         data = speciesDataAll,
-                        random = ~Yearctd+1|PlotID/uniTreeID, 
+                        random = ~Yearctd+1|Species_Group/PlotID/uniTreeID, 
                         control = lmeControl(opt="optim", maxIter=50000, msMaxIter = 50000))
   } else {
     fullModelAll <- lme(logY~logDBHctd+Yearctd+logHctd+logSActd+
