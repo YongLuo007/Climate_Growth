@@ -108,25 +108,25 @@ coroutput[,':='(Species_Group = factor(Species_Group, levels = studySpeciesGroup
                 x = -Inf, y = -Inf)]
 
 figuredata[,':='(Species_Group = factor(Species_Group, levels = studySpeciesGroup),
-                 CompetitionType = factor(variable, levels = c("crowdC", "assymC"),
-                                          labels = c("log(Crowdedness competition)",
-                                                     "log(Asymmetric competition)")))]
+                 CompetitionType = factor(variable, levels = c("assymC", "crowdC"),
+                                          labels = c("log(Asymmetric competition)",
+                                                     "log(Crowdedness competition)")))]
 texttable <- data.table(Species_Group = factor(studySpeciesGroup, levels = studySpeciesGroup),
-                        CompetitionType = factor("log(Crowdedness competition)",
-                                                 levels = c("log(Crowdedness competition)",
-                                                            "log(Asymmetric competition)")),
+                        CompetitionType = factor("log(Asymmetric competition)",
+                                                 levels = c("log(Asymmetric competition)",
+                                                            "log(Crowdedness competition)")),
                         value = -Inf, H = Inf, labels = letters[1:5])
 segtable <- rbind(data.table(Species_Group = factor(studySpeciesGroup, levels = studySpeciesGroup),
-                             CompetitionType = factor("log(Crowdedness competition)",
-                                                      levels = c("log(Crowdedness competition)",
-                                                                 "log(Asymmetric competition)")),
+                             CompetitionType = factor("log(Asymmetric competition)",
+                                                      levels = c("log(Asymmetric competition)",
+                                                                 "log(Crowdedness competition)")),
                              x = -Inf, xend = -Inf, y = -Inf, yend = Inf),
                   data.table(expand.grid(Species_Group = factor(studySpeciesGroup, 
                                                                 levels = studySpeciesGroup),
                                          CompetitionType = factor(c("log(Crowdedness competition)",
                                                                     "log(Asymmetric competition)"),
-                                                                  levels = c("log(Crowdedness competition)",
-                                                                             "log(Asymmetric competition)"))))[, ':='(x = -Inf, xend = Inf, y = -Inf, yend = -Inf)])
+                                                                  levels = c("log(Asymmetric competition)",
+                                                                             "log(Crowdedness competition)"))))[, ':='(x = -Inf, xend = Inf, y = -Inf, yend = -Inf)])
 
 
 
