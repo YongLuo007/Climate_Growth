@@ -1,6 +1,7 @@
 rm(list = ls())
 # produce figure 2
-library(data.table); library(ggplot2); library(SpaDES)
+library(data.table); library(ggplot2, lib.loc = "~/GitHub/Climate_Growth/RequiredRPackages"); 
+library(SpaDES)
 library(nlme); library(dplyr);library(MuMIn);library(gridExtra)
 workPath <- "~/GitHub/Climate_Growth"
 selectionMethod <- "Year10Analyses"
@@ -138,7 +139,7 @@ figure <- ggplot(data = output[overallSignificant == 1,], aes(x = Year, y = Pred
                                             paste("(Kg ", year^{-1}, " per tree)"))))+
   scale_x_continuous(name = "Year", breaks = seq(1985, 2010, by = 5))+
   scale_color_continuous(name = "DBH / SA",
-                         low = "blue", high = "red", breaks = c(3, 100),
+                         low = "#4d9221", high = "#c51b7d",  breaks = c(3, 100),
                          labels = c("\nSmall / young", "Big / old\n"),
                          guide = guide_colorbar(reverse = TRUE, ticks = FALSE))+
   geom_segment(data = segmenttable, aes(x = x, xend = xend, y = y, yend = yend), size = 1)+
