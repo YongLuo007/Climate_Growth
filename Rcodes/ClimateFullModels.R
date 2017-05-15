@@ -22,7 +22,12 @@ climates <- c("ATA", "GSTA", "NONGSTA",
 fullClimateModels <- list()
 
 for(indispecies in studySpecies){
-  speciesData <- analysesData[Species_Group == indispecies,]
+  if(indispecies == "All species"){
+    speciesData <- analysesData[Species_Group != indispecies,]
+  } else {
+    speciesData <- analysesData[Species_Group == indispecies,]
+  }
+  
   for(indiclimate in climates){
     speciesData$climate <- c(speciesData[, indiclimate, with = FALSE])
     minABGR <- round(abs(min(speciesData$BiomassGR)), 3)+0.01
@@ -36,7 +41,7 @@ for(indispecies in studySpecies){
                                 logDBHctd:logHctd+logDBHctd:Climatectd+logSActd:logHctd+
                                 logSActd:Climatectd+Climatectd:logHctd,
                               data = speciesData,
-                              random = ~1|PlotID/uniTreeID, 
+                              random = ~1|Species_Group/PlotID/uniTreeID, 
                               control = lmeControl(opt="optim", maxIter=50000, msMaxIter = 50000))
     } else {
       fullClimateModel <- lme(logY~logDBHctd+logSActd+Climatectd+logHctd+logDBHctd:logSActd+
