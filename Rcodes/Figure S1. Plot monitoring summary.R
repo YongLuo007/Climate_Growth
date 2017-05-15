@@ -96,7 +96,7 @@ a <- dplyr::left_join(studySpecies1, summaryPlot, by = "Species")
 
 FigureS1_b <- ggplot(data = figureS1_bData, aes(x = Year, y = NofTree))+
   geom_line(aes(group = Species, col = Species), size = 1)+
-  scale_y_continuous(name = "Number of tree", limits = c(0, 16000), breaks = seq(0, 10000, by = 2000))+
+  scale_y_continuous(name = "Number of trees", limits = c(0, 16000), breaks = seq(0, 10000, by = 2000))+
   scale_x_continuous(name = "Year", limits = c(1985, 2012), breaks = seq(1985, 2011, by = 5))+
   scale_color_manual(values = c("white", "red", "blue", "green", "pink"),
                      labels = a$legendTexts)+
