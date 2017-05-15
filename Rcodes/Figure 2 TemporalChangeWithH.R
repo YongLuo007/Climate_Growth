@@ -1,6 +1,7 @@
 rm(list = ls())
 # produce figure 2
-library(data.table); library(ggplot2); library(SpaDES)
+library(data.table); library(ggplot2, lib.loc = "~/GitHub/Climate_Growth/RequiredRPackages"); 
+library(SpaDES)
 library(nlme); library(dplyr);library(MuMIn);library(gridExtra)
 workPath <- "~/GitHub/Climate_Growth"
 selectionMethod <- "Year10Analyses"
